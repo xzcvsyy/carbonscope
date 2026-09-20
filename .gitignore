@@ -1,0 +1,12 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment secrets — never commit this
+.env
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/

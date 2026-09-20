@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CarbonScope — Estimate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EFEDFB;
+    --card: #FFFFFF;
+    --card-alt: #FAFAFD;
+    --border: #E7E5F5;
+    --border-strong: #5B4FE9;
+    --purple: #5B4FE9;
+    --purple-tint: #EFEDFB;
+    --purple-tint-border: #DAD5FB;
+    --track: #ECEAF7;
+    --ink: #14142B;
+    --muted: #6E6E82;
+    --faint: #9A98AC;
+    --faintest: #B4B2C4;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--card);
+    color: var(--ink);
+    padding: calc(0px + env(safe-area-inset-top, 0px)) 0 calc(0px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .shell {
+    width: 100%;
+    background: var(--card);
+  }
+
+  .panels-outer {
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid #ECECEC;
+    gap: 16px;
+    flex-wrap: wrap;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo-placeholder {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: #D9D9D9; flex-shrink: 0;
+  }
+  .brand-name { font-size: 17px; font-weight: 700; }
+  .nav { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .nav a {
+    text-decoration: none; color: var(--muted); padding: 8px 14px; border-radius: 20px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .nav a:hover { color: var(--ink); }
+  .nav a.active { font-weight: 600; color: var(--purple); background: var(--purple-tint); }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--ink); flex-shrink: 0; }
+
+  .hero { text-align: center; padding: 40px 24px 32px; }
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 600; color: var(--purple);
+    background: var(--purple-tint); border: 1px solid var(--purple-tint-border);
+    border-radius: 20px; padding: 6px 14px; margin-bottom: 20px;
+  }
+  h1 { font-size: 34px; font-weight: 800; line-height: 1.25; margin: 0 0 14px; }
+  .subhead { max-width: 620px; margin: 0 auto; font-size: 15px; line-height: 1.6; color: var(--muted); }
+
+  .panels {
+    display: flex; gap: 24px; padding: 8px 32px 40px;
+    align-items: flex-start; flex-wrap: wrap;
+  }
+  .panel {
+    flex: 1 1 420px; border: 1px solid var(--border); border-radius: 16px; padding: 28px;
+  }
+  .panel-left { background: var(--card); }
+  .panel-right { background: var(--card-alt); }
+  .panel-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .panel-sub { font-size: 13px; color: var(--faint); margin-bottom: 26px; }
+
+  .field-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+
+  select.dropdown {
+    width: 100%; appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    border: 1px solid #E3E1F0; border-radius: 10px; padding: 12px 40px 12px 14px;
+    font-size: 14px; color: var(--ink); font-family: inherit;
+    background: #FFFFFF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%239A98AC' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center;
+    margin-bottom: 24px; cursor: pointer;
+  }
+  select.dropdown:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+
+  .slider-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .slider-name { font-size: 13px; font-weight: 600; }
+  .slider-unit { font-size: 11px; color: var(--faint); }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; border-radius: 3px;
+    background: linear-gradient(to right, var(--purple) 0%, var(--purple) var(--fill, 50%), var(--track) var(--fill, 50%), var(--track) 100%);
+    margin: 0; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--ink); border: 3px solid #FFFFFF;
+    box-shadow: 0 0 0 1px var(--ink);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--ink); border: 3px solid #FFFFFF;
+    box-shadow: 0 0 0 1px var(--ink);
+    cursor: pointer; border: none;
+  }
+  input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: transparent; }
+  input[type="range"]:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
+
+  .slider-value { text-align: right; font-size: 13px; font-weight: 700; margin: 4px 0 22px; }
+
+  button.cta {
+    width: 100%; background: var(--purple); color: #FFFFFF; border: none; border-radius: 10px;
+    padding: 15px; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  button.cta:hover { background: #4C41D6; }
+  button.cta:active { transform: scale(0.99); }
+  button.cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .disclaimer { text-align: center; font-size: 11px; color: var(--faintest); margin-top: 14px; line-height: 1.5; }
+
+  .result-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 12px; }
+  .badge {
+    font-size: 12px; font-weight: 600; border-radius: 12px; padding: 4px 12px; white-space: nowrap;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+
+  .total-wrap { text-align: center; margin-bottom: 28px; }
+  .total-value { font-size: 56px; font-weight: 800; line-height: 1; transition: color 0.2s ease; }
+  .total-label { font-size: 13px; color: var(--faint); margin-top: 6px; }
+
+  .bd-row { display: flex; align-items: center; margin-bottom: 14px; }
+  .bd-label { width: 80px; font-size: 13px; color: var(--muted); flex-shrink: 0; }
+  .bd-track { flex: 1; height: 6px; background: var(--track); border-radius: 3px; margin: 0 12px; overflow: hidden; }
+  .bd-fill { height: 6px; background: var(--purple); border-radius: 3px; width: 0%; transition: width 0.35s ease; }
+  .bd-value { width: 44px; text-align: right; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+
+  .summary-box {
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    font-size: 13px; line-height: 1.6; margin: 22px 0 20px; min-height: 44px;
+  }
+  .summary-box strong { font-weight: 700; }
+  .summary-cluster { color: var(--purple); font-weight: 600; }
+
+  .meta-row { display: flex; justify-content: space-between; font-size: 13px; flex-wrap: wrap; gap: 8px; }
+  .meta-row span { color: var(--muted); }
+  .meta-row strong { color: var(--ink); }
+
+  @media (max-width: 640px) {
+    h1 { font-size: 26px; }
+    .panel { padding: 22px; }
+    .header { padding: 16px 20px; }
+    .hero { padding: 32px 16px 24px; }
+    .panels { padding: 8px 16px 28px; }
+    .nav { gap: 18px; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17162A;
+      --card: #1E1D33;
+      --card-alt: #1A1930;
+      --border: #322F52;
+      --border-strong: #7A6FF0;
+      --purple: #8B7FFF;
+      --purple-tint: #26234A;
+      --purple-tint-border: #3B3768;
+      --track: #2C2A4C;
+      --ink: #F3F2FB;
+      --muted: #A9A7C4;
+      --faint: #8683A6;
+      --faintest: #6B6890;
+    }
+    :root:not([data-theme="light"]) .avatar { background: #F3F2FB; }
+    :root:not([data-theme="light"]) .logo-placeholder { background: #3B3968; }
+    :root:not([data-theme="light"]) select.dropdown { background-color: #24223F; color: var(--ink); border-color: var(--border); }
+    :root:not([data-theme="light"]) .summary-box { background: #24223F; }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17162A; --card: #1E1D33; --card-alt: #1A1930; --border: #322F52;
+    --border-strong: #7A6FF0; --purple: #8B7FFF; --purple-tint: #26234A;
+    --purple-tint-border: #3B3768; --track: #2C2A4C; --ink: #F3F2FB;
+    --muted: #A9A7C4; --faint: #8683A6; --faintest: #6B6890;
+  }
+  :root[data-theme="dark"] .avatar { background: #F3F2FB; }
+  :root[data-theme="dark"] .logo-placeholder { background: #3B3968; }
+  :root[data-theme="dark"] select.dropdown { background-color: #24223F; color: var(--ink); border-color: var(--border); }
+  :root[data-theme="dark"] .summary-box { background: #24223F; }
+</style>
+</head>
+<body>
+
+  <div class="shell">
+
+    <div class="header">
+      <div class="brand">
+        <img src="" alt="" class="logo-placeholder">
+        <span class="brand-name">CarbonScope</span>
+      </div>
+      <div class="nav">
+        <a href="#" class="active">Estimate</a>
+        <a href="#">Anomalies</a>
+        <a href="#">Reports</a>
+      </div>
+      <div class="avatar"></div>
+    </div>
+
+    <div class="hero">
+      <span class="eyebrow">✦ CO2e Estimation · K-Means · Isolation Forest</span>
+      <h1>Enter your weekly activity, get an instant<br>carbon reading</h1>
+      <p class="subhead">Fill in the fields below. CarbonScope converts each activity into CO2e using documented emission factors, then places the result against the clustered dataset to interpret what it means.</p>
+    </div>
+
+    <div class="panels panels-outer">
+
+      <div class="panel panel-left">
+        <div class="panel-title">Weekly activity input</div>
+        <div class="panel-sub">Estimates update as you adjust the fields.</div>
+
+        <div class="field-label">Mode of transportation</div>
+        <select class="dropdown" id="transportMode">
+          <option value="car_gasoline" selected>Car — gasoline (0.12 kg CO2e per km)</option>
+          <option value="motorcycle">Motorcycle (0.09 kg CO2e per km)</option>
+          <option value="traditional_jeep">Traditional jeep (0.15 kg CO2e per km)</option>
+          <option value="bicycle_walking">Bicycle / walking (0 kg CO2e per km)</option>
+        </select>
+
+        <div class="slider-row">
+          <span class="slider-name">Distance travelled</span>
+          <span class="slider-unit">km / week</span>
+        </div>
+        <input type="range" id="distance" min="0" max="300" step="1" value="85">
+        <div class="slider-value" id="distanceVal">85</div>
+
+        <div class="slider-row">
+          <span class="slider-name">Electricity use</span>
+          <span class="slider-unit">kWh / week</span>
+        </div>
+        <input type="range" id="electricity" min="0" max="150" step="1" value="35">
+        <div class="slider-value" id="electricityVal">35</div>
+
+        <div class="slider-row">
+          <span class="slider-name">Digital device use</span>
+          <span class="slider-unit">hrs / day</span>
+        </div>
+        <input type="range" id="devices" min="0" max="24" step="0.5" value="8">
+        <div class="slider-value" id="devicesVal">8</div>
+
+        <div class="slider-row">
+          <span class="slider-name">Paper / material use</span>
+          <span class="slider-unit">sheets / week</span>
+        </div>
+        <input type="range" id="paper" min="0" max="100" step="1" value="10">
+        <div class="slider-value" id="paperVal">10</div>
+
+        <div class="field-label">Food consumption pattern</div>
+        <select class="dropdown" id="foodPattern">
+          <option value="vegan">Vegan (10.0 kg CO2e/week)</option>
+          <option value="vegetarian">Vegetarian (15.0 kg CO2e/week)</option>
+          <option value="mixed_diet" selected>Mixed diet (22.0 kg CO2e/week)</option>
+          <option value="meat_heavy">Meat-heavy (35.0 kg CO2e/week)</option>
+        </select>
+
+        <button class="cta" id="estimateBtn">Estimate carbon footprint</button>
+        <div id="apiStatus" style="text-align:center; font-size:12px; margin-top:10px; min-height:16px;"></div>
+
+        <div class="disclaimer">Emission factors are illustrative placeholders for this prototype — the deployed system uses factors documented from the validation source datasets.</div>
+      </div>
+
+      <div class="panel panel-right">
+        <div class="result-header">
+          <div class="panel-title" style="margin-bottom:0;">Estimation result</div>
+          <span class="badge" id="badge">Moderate</span>
+        </div>
+
+        <div class="total-wrap">
+          <div class="total-value" id="totalValue">49.0</div>
+          <div class="total-label">kg CO2e estimated this week</div>
+        </div>
+
+        <div class="bd-row">
+          <div class="bd-label">Transport</div>
+          <div class="bd-track"><div class="bd-fill" id="fillTransport"></div></div>
+          <div class="bd-value" id="valTransport">10.2</div>
+        </div>
+        <div class="bd-row">
+          <div class="bd-label">Electricity</div>
+          <div class="bd-track"><div class="bd-fill" id="fillElectricity"></div></div>
+          <div class="bd-value" id="valElectricity">15.8</div>
+        </div>
+        <div class="bd-row">
+          <div class="bd-label">Devices</div>
+          <div class="bd-track"><div class="bd-fill" id="fillDevices"></div></div>
+          <div class="bd-value" id="valDevices">0.8</div>
+        </div>
+        <div class="bd-row">
+          <div class="bd-label">Paper</div>
+          <div class="bd-track"><div class="bd-fill" id="fillPaper"></div></div>
+          <div class="bd-value" id="valPaper">0.2</div>
+        </div>
+        <div class="bd-row">
+          <div class="bd-label">Food</div>
+          <div class="bd-track"><div class="bd-fill" id="fillFood"></div></div>
+          <div class="bd-value" id="valFood">22.0</div>
+        </div>
+
+        <div class="summary-box" id="summaryBox">
+          <strong>49.0 kg CO2e</strong> falls within the <span class="summary-cluster">Moderate emission</span> cluster, consistent with most records in the dataset. No anomaly flags raised.
+        </div>
+
+        <div class="meta-row">
+          <span>Nearest cluster: <strong id="clusterLabel">Moderate emission</strong></span>
+          <span>Percentile: <strong id="percentileLabel">Top 42%</strong></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+(function () {
+  var API_BASE_URL = 'http://127.0.0.1:8000';
+
+  var TRANSPORT_FACTORS = {
+    car_gasoline: 0.12,
+    motorcycle: 0.09,
+    traditional_jeep: 0.15,
+    bicycle_walking: 0
+  };
+  var FOOD_VALUES = { vegan: 10, vegetarian: 15, mixed_diet: 22, meat_heavy: 35 };
+  var DEVICE_FACTOR = 0.1;
+  var PAPER_FACTOR = 0.02;
+  var ELECTRICITY_FACTOR = 0.45;
+
+  var distanceEl = document.getElementById('distance');
+  var electricityEl = document.getElementById('electricity');
+  var devicesEl = document.getElementById('devices');
+  var paperEl = document.getElementById('paper');
+  var transportModeEl = document.getElementById('transportMode');
+  var foodPatternEl = document.getElementById('foodPattern');
+
+  var distanceValEl = document.getElementById('distanceVal');
+  var electricityValEl = document.getElementById('electricityVal');
+  var devicesValEl = document.getElementById('devicesVal');
+  var paperValEl = document.getElementById('paperVal');
+
+  var totalValueEl = document.getElementById('totalValue');
+  var badgeEl = document.getElementById('badge');
+  var summaryBoxEl = document.getElementById('summaryBox');
+  var clusterLabelEl = document.getElementById('clusterLabel');
+  var percentileLabelEl = document.getElementById('percentileLabel');
+  var apiStatusEl = document.getElementById('apiStatus');
+  var estimateBtn = document.getElementById('estimateBtn');
+
+  var fills = {
+    Transport: document.getElementById('fillTransport'),
+    Electricity: document.getElementById('fillElectricity'),
+    Devices: document.getElementById('fillDevices'),
+    Paper: document.getElementById('fillPaper'),
+    Food: document.getElementById('fillFood')
+  };
+  var vals = {
+    Transport: document.getElementById('valTransport'),
+    Electricity: document.getElementById('valElectricity'),
+    Devices: document.getElementById('valDevices'),
+    Paper: document.getElementById('valPaper'),
+    Food: document.getElementById('valFood')
+  };
+
+  var BAR_MAX = { Transport: 36, Electricity: 68, Devices: 2.4, Paper: 2, Food: 35 };
+
+  function fmt(n) { return n.toFixed(1); }
+
+  function updateSliderFill(el) {
+    var min = parseFloat(el.min), max = parseFloat(el.max), val = parseFloat(el.value);
+    var pct = ((val - min) / (max - min)) * 100;
+    el.style.setProperty('--fill', pct + '%');
+  }
+
+
+  function previewClassify(total) {
+    if (total < 20) return { label: 'Low', color: '#1F9D55', bg: '#E7F8EE' };
+    if (total < 45) return { label: 'Moderate', color: '#5B4FE9', bg: '#EFEDFB' };
+    return { label: 'High', color: '#B4790A', bg: '#FBF0DC' };
+  }
+
+  var CLUSTER_DISPLAY = {
+    low_emission: { label: 'Low', cluster: 'Low emission', color: '#1F9D55', bg: '#E7F8EE' },
+    moderate: { label: 'Moderate', cluster: 'Moderate emission', color: '#5B4FE9', bg: '#EFEDFB' },
+    high_emission: { label: 'High', cluster: 'High emission', color: '#C23B3B', bg: '#FBE7E7' }
+  };
+
+  function estimatePercentile(total) {
+    var pct = Math.max(1, Math.min(99, Math.round(100 - (total / 120) * 100)));
+    return pct;
+  }
+
+  function currentBreakdown() {
+    var distance = parseFloat(distanceEl.value);
+    var electricity = parseFloat(electricityEl.value);
+    var devices = parseFloat(devicesEl.value);
+    var paper = parseFloat(paperEl.value);
+    var transportFactor = TRANSPORT_FACTORS[transportModeEl.value];
+    var food = FOOD_VALUES[foodPatternEl.value];
+
+    return {
+      distance: distance, electricity: electricity, devices: devices, paper: paper,
+      Transport: distance * transportFactor,
+      Electricity: electricity * ELECTRICITY_FACTOR,
+      Devices: devices * DEVICE_FACTOR,
+      Paper: paper * PAPER_FACTOR,
+      Food: food
+    };
+  }
+
+  function renderBreakdown(b, total) {
+    ['Transport', 'Electricity', 'Devices', 'Paper', 'Food'].forEach(function (key) {
+      var v = b[key];
+      vals[key].textContent = fmt(v);
+      var pct = Math.min(100, (v / BAR_MAX[key]) * 100);
+      fills[key].style.width = pct + '%';
+    });
+    totalValueEl.textContent = fmt(total);
+  }
+
+  function preview() {
+    distanceValEl.textContent = distanceEl.value;
+    electricityValEl.textContent = electricityEl.value;
+    devicesValEl.textContent = devicesEl.value;
+    paperValEl.textContent = paperEl.value;
+
+    var b = currentBreakdown();
+    var total = b.Transport + b.Electricity + b.Devices + b.Paper + b.Food;
+    renderBreakdown(b, total);
+
+    var cls = previewClassify(total);
+    badgeEl.textContent = cls.label;
+    badgeEl.style.color = cls.color;
+    badgeEl.style.background = cls.bg;
+    totalValueEl.style.color = cls.color;
+    percentileLabelEl.textContent = 'Top ' + estimatePercentile(total) + '%';
+
+    [distanceEl, electricityEl, devicesEl, paperEl].forEach(updateSliderFill);
+  }
+
+  function submitEstimate() {
+    var payload = {
+      transport_subtype: transportModeEl.value,
+      distance_km: parseFloat(distanceEl.value),
+      electricity_kwh: parseFloat(electricityEl.value),
+      device_hours_per_day: parseFloat(devicesEl.value),
+      paper_sheets: parseFloat(paperEl.value),
+      food_subtype: foodPatternEl.value
+    };
+
+    estimateBtn.disabled = true;
+    estimateBtn.textContent = 'Estimating…';
+    apiStatusEl.textContent = '';
+    apiStatusEl.style.color = '';
+
+    fetch(API_BASE_URL + '/api/estimate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().then(function (err) {
+            throw new Error(err.detail || ('Request failed with status ' + res.status));
+          });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        var b = data.breakdown;
+        renderBreakdown(
+          {
+            Transport: b.transport_co2e,
+            Electricity: b.electricity_co2e,
+            Devices: b.devices_co2e,
+            Paper: b.paper_co2e,
+            Food: b.food_co2e
+          },
+          b.total_co2e
+        );
+
+        var cls = CLUSTER_DISPLAY[data.nearest_cluster] || previewClassify(b.total_co2e);
+        badgeEl.textContent = cls.label;
+        badgeEl.style.color = cls.color;
+        badgeEl.style.background = cls.bg;
+        totalValueEl.style.color = cls.color;
+        summaryBoxEl.innerHTML = '<strong>' + fmt(b.total_co2e) + ' kg CO2e</strong> falls within the ' +
+          '<span class="summary-cluster">' + cls.cluster + '</span> cluster.';
+        clusterLabelEl.textContent = cls.cluster;
+        percentileLabelEl.textContent = 'Top ' + estimatePercentile(b.total_co2e) + '%';
+
+        apiStatusEl.style.color = '#1F9D55';
+        apiStatusEl.textContent = 'Saved — record ' + data.record_id.slice(0, 8) + '…';
+      })
+      .catch(function (err) {
+        apiStatusEl.style.color = '#C23B3B';
+        apiStatusEl.textContent = 'Could not reach the server: ' + err.message;
+      })
+      .finally(function () {
+        estimateBtn.disabled = false;
+        estimateBtn.textContent = 'Estimate carbon footprint';
+      });
+  }
+
+  [distanceEl, electricityEl, devicesEl, paperEl, transportModeEl, foodPatternEl].forEach(function (el) {
+    el.addEventListener('input', preview);
+    el.addEventListener('change', preview);
+  });
+
+  estimateBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    submitEstimate();
+  });
+
+  preview();
+})();
+</script>
+
+</body>
+</html>
