@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -62,7 +64,7 @@
 
   .page-head {
     display: flex; justify-content: space-between; align-items: flex-start;
-    gap: 16px; margin-bottom: 32px; flex-wrap: wrap;
+    gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
   }
   .page-title { font-size: 26px; font-weight: 800; margin: 0 0 6px; }
   .page-sub { font-size: 14px; color: var(--muted); margin: 0; }
@@ -74,6 +76,17 @@
   }
   button.export:hover { background: #F7F6FD; border-color: var(--purple); }
   button.export:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+
+  .notice {
+    background: #FFF7E6; border: 1px solid #F5DFA8; color: #8A6216;
+    border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.5;
+    margin-bottom: 24px; display: none;
+  }
+  .api-error {
+    background: #FBE7E7; border: 1px solid #F3B9B9; color: #A33333;
+    border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.5;
+    margin-bottom: 24px; display: none;
+  }
 
   .stats-row {
     display: grid;
@@ -102,13 +115,15 @@
   .chart {
     display: flex; align-items: flex-end; gap: 14px; height: 170px;
   }
-  .bar-wrap { flex: 1; display: flex; align-items: flex-end; height: 100%; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; }
   .bar {
     width: 100%; border-radius: 6px 6px 0 0; background: var(--purple);
-    transition: transform 0.15s ease, filter 0.15s ease;
+    transition: transform 0.15s ease, filter 0.15s ease, height 0.3s ease;
   }
   .bar:hover { filter: brightness(1.08); }
   .bar.anomalous { background: var(--alert); }
+  .bar-label { font-size: 10px; color: var(--faint); white-space: nowrap; }
+  .chart-empty { font-size: 13px; color: var(--faint); text-align: center; padding: 40px 0; width: 100%; }
 
   .cluster-list { display: flex; flex-direction: column; gap: 20px; }
   .cluster-row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
@@ -192,33 +207,32 @@
       <button class="export" id="exportBtn">Export PDF</button>
     </div>
 
+    <div class="api-error" id="apiError"></div>
+    <div class="notice" id="noRunNotice">
+      No mining run yet. The numbers below are based on raw activity_records only. Run
+      <code>python -m app.mining</code> in your backend to see real K-Means clustering and Isolation Forest results.
+    </div>
+
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-label">Total estimated CO2e</div>
-        <div class="stat-value">18.4t <span class="stat-tag">records ready</span></div>
+        <div class="stat-value"><span id="totalCo2e">—</span> <span class="stat-tag" id="statTag"></span></div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Records processed</div>
-        <div class="stat-value">6,204</div>
+        <div class="stat-value" id="recordsProcessed">—</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Anomalies flagged</div>
-        <div class="stat-value">37</div>
+        <div class="stat-value" id="anomaliesFlagged">—</div>
       </div>
     </div>
 
     <div class="analytics-row">
       <div class="analytics-card">
-        <div class="analytics-title">Weekly emission trend</div>
+        <div class="analytics-title">Daily emission trend</div>
         <div class="chart" id="chart">
-          <div class="bar-wrap"><div class="bar" style="height: 55%;"></div></div>
-          <div class="bar-wrap"><div class="bar" style="height: 70%;"></div></div>
-          <div class="bar-wrap"><div class="bar" style="height: 60%;"></div></div>
-          <div class="bar-wrap"><div class="bar" style="height: 78%;"></div></div>
-          <div class="bar-wrap"><div class="bar anomalous" style="height: 100%;"></div></div>
-          <div class="bar-wrap"><div class="bar" style="height: 68%;"></div></div>
-          <div class="bar-wrap"><div class="bar" style="height: 88%;"></div></div>
-          <div class="bar-wrap"><div class="bar" style="height: 72%;"></div></div>
+          <div class="chart-empty">Loading…</div>
         </div>
       </div>
 
@@ -227,19 +241,19 @@
         <div class="cluster-list">
           <div class="cluster-row">
             <div class="cluster-left"><span class="dot green"></span>Low emission</div>
-            <span class="cluster-count">2,410</span>
+            <span class="cluster-count" id="countLow">—</span>
           </div>
           <div class="cluster-row">
             <div class="cluster-left"><span class="dot purple"></span>Moderate</div>
-            <span class="cluster-count">2,877</span>
+            <span class="cluster-count" id="countModerate">—</span>
           </div>
           <div class="cluster-row">
             <div class="cluster-left"><span class="dot violet"></span>High emission</div>
-            <span class="cluster-count">780</span>
+            <span class="cluster-count" id="countHigh">—</span>
           </div>
           <div class="cluster-row">
             <div class="cluster-left"><span class="dot alert"></span>Anomalous</div>
-            <span class="cluster-count">37</span>
+            <span class="cluster-count" id="countAnomaly">—</span>
           </div>
         </div>
       </div>
@@ -247,16 +261,98 @@
 
     <div class="eval-section">
       <div class="eval-title">Model evaluation</div>
-      <div class="eval-row"><span>Silhouette score</span><span>0.71</span></div>
-      <div class="eval-row"><span>Isolation Forest contamination</span><span>0.6%</span></div>
-      <div class="eval-row"><span>Dataset source</span><span>Campus Activity Dataset · 2024</span></div>
+      <div class="eval-row"><span>Silhouette score</span><span id="silhouetteScore">—</span></div>
+      <div class="eval-row"><span>Isolation Forest contamination</span><span id="contamination">—</span></div>
+      <div class="eval-row"><span>Dataset source</span><span id="datasetSource">—</span></div>
     </div>
   </div>
 
 <script>
+(function () {
+  var API_BASE_URL = 'http://127.0.0.1:8000';
+
+  var totalCo2eEl = document.getElementById('totalCo2e');
+  var statTagEl = document.getElementById('statTag');
+  var recordsProcessedEl = document.getElementById('recordsProcessed');
+  var anomaliesFlaggedEl = document.getElementById('anomaliesFlagged');
+  var chartEl = document.getElementById('chart');
+  var countLowEl = document.getElementById('countLow');
+  var countModerateEl = document.getElementById('countModerate');
+  var countHighEl = document.getElementById('countHigh');
+  var countAnomalyEl = document.getElementById('countAnomaly');
+  var silhouetteScoreEl = document.getElementById('silhouetteScore');
+  var contaminationEl = document.getElementById('contamination');
+  var datasetSourceEl = document.getElementById('datasetSource');
+  var noRunNoticeEl = document.getElementById('noRunNotice');
+  var apiErrorEl = document.getElementById('apiError');
+
+  function renderChart(weeklyTrend) {
+    chartEl.innerHTML = '';
+    if (!weeklyTrend || weeklyTrend.length === 0) {
+      chartEl.innerHTML = '<div class="chart-empty">No data yet. Submit an estimate from the Estimate page first.</div>';
+      return;
+    }
+    var max = Math.max.apply(null, weeklyTrend.map(function (d) { return d.total_co2e; }).concat([1]));
+    weeklyTrend.forEach(function (day) {
+      var pct = Math.max(4, Math.round((day.total_co2e / max) * 100));
+      var wrap = document.createElement('div');
+      wrap.className = 'bar-wrap';
+      var bar = document.createElement('div');
+      bar.className = 'bar' + (day.is_anomalous ? ' anomalous' : '');
+      bar.style.height = pct + '%';
+      bar.title = day.label + ': ' + day.total_co2e + ' kg CO2e';
+      var label = document.createElement('div');
+      label.className = 'bar-label';
+      label.textContent = day.label;
+      wrap.appendChild(bar);
+      wrap.appendChild(label);
+      chartEl.appendChild(wrap);
+    });
+  }
+
+  function loadReport() {
+    fetch(API_BASE_URL + '/api/report')
+      .then(function (res) {
+        if (!res.ok) throw new Error('Request failed with status ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        totalCo2eEl.textContent = data.total_co2e_tonnes + 't';
+        statTagEl.textContent = data.has_mining_run ? 'records ready' : 'raw data only';
+        recordsProcessedEl.textContent = data.records_processed.toLocaleString();
+        anomaliesFlaggedEl.textContent = data.anomalies_flagged;
+
+        countLowEl.textContent = data.cluster_distribution.low_emission;
+        countModerateEl.textContent = data.cluster_distribution.moderate;
+        countHighEl.textContent = data.cluster_distribution.high_emission;
+        countAnomalyEl.textContent = data.anomalies_flagged;
+
+        silhouetteScoreEl.textContent = data.silhouette_score !== null && data.silhouette_score !== undefined
+          ? Number(data.silhouette_score).toFixed(2)
+          : 'Not yet available';
+        contaminationEl.textContent = data.isolation_contamination !== null && data.isolation_contamination !== undefined
+          ? (Number(data.isolation_contamination) * 100).toFixed(1) + '%'
+          : 'Not yet available';
+        datasetSourceEl.textContent = data.dataset_source;
+
+        noRunNoticeEl.style.display = data.has_mining_run ? 'none' : 'block';
+        apiErrorEl.style.display = 'none';
+
+        renderChart(data.weekly_trend);
+      })
+      .catch(function (err) {
+        apiErrorEl.textContent = 'Could not reach the server: ' + err.message + '. Make sure uvicorn is running.';
+        apiErrorEl.style.display = 'block';
+        chartEl.innerHTML = '<div class="chart-empty">Could not load the chart.</div>';
+      });
+  }
+
   document.getElementById('exportBtn').addEventListener('click', function () {
     window.print();
   });
+
+  loadReport();
+})();
 </script>
 
 </body>

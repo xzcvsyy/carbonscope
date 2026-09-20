@@ -222,8 +222,8 @@
       </div>
       <div class="nav">
         <a href="#" class="active">Estimate</a>
-        <a href="#">Anomalies</a>
-        <a href="#">Reports</a>
+        <a href="anomalies.html">Anomalies</a>
+        <a href="reports.html">Reports</a>
       </div>
       <div class="avatar"></div>
     </div>
@@ -284,7 +284,7 @@
           <option value="meat_heavy">Meat-heavy (35.0 kg CO2e/week)</option>
         </select>
 
-        <button class="cta" id="estimateBtn">Estimate carbon footprint</button>
+        <button class="cta" id="estimateBtn">Scope!</button>
         <div id="apiStatus" style="text-align:center; font-size:12px; margin-top:10px; min-height:16px;"></div>
 
         <div class="disclaimer">Emission factors are illustrative placeholders for this prototype — the deployed system uses factors documented from the validation source datasets.</div>
@@ -477,7 +477,7 @@
     };
 
     estimateBtn.disabled = true;
-    estimateBtn.textContent = 'Estimating…';
+    estimateBtn.textContent = 'Adding your scope...';
     apiStatusEl.textContent = '';
     apiStatusEl.style.color = '';
 
