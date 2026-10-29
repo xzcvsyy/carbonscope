@@ -98,6 +98,19 @@
 
   .empty-note { text-align: center; font-size: 13px; color: var(--faint); padding: 40px 0; }
 
+  .notice {
+    background: #FFF7E6; border: 1px solid #F5DFA8; color: #8A6216;
+    border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.5;
+    margin-bottom: 24px; display: none;
+  }
+  .api-error {
+    background: #FBE7E7; border: 1px solid #F3B9B9; color: #A33333;
+    border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.5;
+    margin-bottom: 24px; display: none;
+  }
+  .anomaly-source { color: var(--purple); font-weight: 600; }
+  button.export:disabled { opacity: 0.5; cursor: not-allowed; }
+
   @media (max-width: 760px) {
     .grid { grid-template-columns: 1fr; }
     .header { padding: 16px 20px; }
@@ -146,9 +159,14 @@
     <div class="page-head">
       <div>
         <h1 class="page-title">Flagged anomalies</h1>
-        <p class="page-sub">Records Isolation Forest identified as unusual relative to the rest of the dataset.</p>
+        <p class="page-sub" id="subtitle">Records Isolation Forest identified as unusual relative to the rest of the dataset.</p>
       </div>
       <button class="export" id="exportBtn">Export flagged</button>
+    </div>
+
+    <div class="api-error" id="apiError"></div>
+    <div class="notice" id="noRunNotice">
+      No mining run yet. Run <code>python -m app.mining</code> in your backend to flag anomalies.
     </div>
 
     <div class="grid" id="anomalyGrid"></div>
@@ -156,76 +174,106 @@
 
 <script>
 (function () {
-  var anomalies = [
-    {
-      id: 'REC-1038',
-      kg: 134.7,
-      desc: 'Electricity use (428 kWh/week) is roughly 4× the dataset average, with no matching increase in occupancy data.',
-      date: 'Sep 16, 2026',
-      score: -0.61
-    },
-    {
-      id: 'REC-1029',
-      kg: 112.3,
-      desc: 'Combines a high-emission transport mode with unusually high paper use — an uncommon pairing in this dataset.',
-      date: 'Sep 11, 2026',
-      score: -0.54
-    },
-    {
-      id: 'REC-1017',
-      kg: 3.1,
-      desc: 'Unusually low across every category at once — possibly an incomplete submission rather than genuinely low activity.',
-      date: 'Sep 6, 2026',
-      score: -0.49
-    },
-    {
-      id: 'REC-1004',
-      kg: 98.6,
-      desc: 'Distance traveled (280 km/week) sits far outside the typical range recorded for this transport mode.',
-      date: 'Sep 2, 2026',
-      score: -0.45
-    }
-  ];
+  var API_BASE_URL = 'http://127.0.0.1:8000';
 
   var grid = document.getElementById('anomalyGrid');
+  var subtitleEl = document.getElementById('subtitle');
+  var noRunNoticeEl = document.getElementById('noRunNotice');
+  var apiErrorEl = document.getElementById('apiError');
+  var exportBtn = document.getElementById('exportBtn');
+  var anomalies = [];
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    var d = new Date(String(iso).slice(0, 10) + 'T00:00:00');
+    if (isNaN(d.getTime())) return String(iso).slice(0, 10);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function showMessage(text) {
+    grid.innerHTML = '';
+    grid.appendChild(el('div', 'empty-note', text));
+  }
 
   function render(list) {
     grid.innerHTML = '';
-    if (!list.length) {
-      var empty = document.createElement('div');
-      empty.className = 'empty-note';
-      empty.textContent = 'No flagged anomalies to show.';
-      grid.appendChild(empty);
-      return;
-    }
     list.forEach(function (a) {
-      var card = document.createElement('div');
-      card.className = 'anomaly-card';
-      card.innerHTML =
-        '<div class="anomaly-top">' +
-          '<span class="anomaly-id">' + a.id + '</span>' +
-          '<span class="anomaly-kg">' + a.kg.toFixed(1) + ' kg</span>' +
-        '</div>' +
-        '<p class="anomaly-desc">' + a.desc + '</p>' +
-        '<div class="anomaly-meta">' +
-          '<span>' + a.date + '</span>' +
-          '<span>Score: ' + a.score.toFixed(2) + '</span>' +
-        '</div>';
+      var card = el('div', 'anomaly-card');
+
+      var top = el('div', 'anomaly-top');
+      top.appendChild(el('span', 'anomaly-id', a.short_id));
+      top.appendChild(el('span', 'anomaly-kg', Number(a.total_co2e).toFixed(1) + ' kg'));
+
+      var desc = el('p', 'anomaly-desc', a.explanation || 'Flagged as unusual relative to the rest of the dataset.');
+
+      var meta = el('div', 'anomaly-meta');
+      meta.appendChild(el('span', '', formatDate(a.submitted_at)));
+      meta.appendChild(el('span', '', 'Score: ' + Number(a.anomaly_score).toFixed(2)));
+      meta.appendChild(el('span', 'anomaly-source', a.source));
+
+      card.appendChild(top);
+      card.appendChild(desc);
+      card.appendChild(meta);
       grid.appendChild(card);
     });
   }
 
-  function toCSV(list) {
-    var rows = [['id', 'kg_co2e', 'description', 'date', 'score']];
-    list.forEach(function (a) {
-      rows.push([a.id, a.kg, '"' + a.desc.replace(/"/g, '""') + '"', a.date, a.score]);
-    });
-    return rows.map(function (r) { return r.join(','); }).join('\n');
+  function csvCell(value) {
+    return '"' + String(value === null || value === undefined ? '' : value).replace(/"/g, '""') + '"';
   }
 
-  document.getElementById('exportBtn').addEventListener('click', function () {
-    var csv = toCSV(anomalies);
-    var blob = new Blob([csv], { type: 'text/csv' });
+  function toCSV(list) {
+    var rows = [['id', 'record_id', 'kg_co2e', 'description', 'date', 'score', 'source']];
+    list.forEach(function (a) {
+      rows.push([a.short_id, a.record_id, a.total_co2e, a.explanation, formatDate(a.submitted_at), a.anomaly_score, a.source]);
+    });
+    return rows.map(function (r) { return r.map(csvCell).join(','); }).join('\n');
+  }
+
+  function loadAnomalies() {
+    exportBtn.disabled = true;
+    showMessage('Loading…');
+    fetch(API_BASE_URL + '/api/anomalies')
+      .then(function (res) {
+        if (!res.ok) throw new Error('Request failed with status ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        apiErrorEl.style.display = 'none';
+        noRunNoticeEl.style.display = data.has_mining_run ? 'none' : 'block';
+        anomalies = data.anomalies || [];
+
+        if (!data.has_mining_run) {
+          showMessage('Nothing to show until a mining run has completed.');
+          return;
+        }
+        if (!anomalies.length) {
+          showMessage('No anomalies were flagged in the latest run.');
+          return;
+        }
+        subtitleEl.textContent = data.total_flagged > anomalies.length
+          ? 'Showing the ' + anomalies.length + ' most unusual of ' + data.total_flagged + ' records Isolation Forest flagged.'
+          : data.total_flagged + ' record' + (data.total_flagged === 1 ? '' : 's') + ' Isolation Forest identified as unusual relative to the rest of the dataset.';
+        render(anomalies);
+        exportBtn.disabled = false;
+      })
+      .catch(function (err) {
+        apiErrorEl.textContent = 'Could not reach the server: ' + err.message + '. Make sure uvicorn is running.';
+        apiErrorEl.style.display = 'block';
+        showMessage('Could not load anomalies.');
+      });
+  }
+
+  exportBtn.addEventListener('click', function () {
+    if (!anomalies.length) return;
+    var blob = new Blob([toCSV(anomalies)], { type: 'text/csv' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
@@ -236,7 +284,7 @@
     URL.revokeObjectURL(url);
   });
 
-  render(anomalies);
+  loadAnomalies();
 })();
 </script>
 

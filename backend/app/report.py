@@ -7,6 +7,19 @@ from app.database import supabase
 
 router = APIRouter()
 
+PAGE_SIZE = 1000
+
+
+def fetch_all(build_query):
+    rows = []
+    start = 0
+    while True:
+        batch = build_query().range(start, start + PAGE_SIZE - 1).execute().data or []
+        rows.extend(batch)
+        if len(batch) < PAGE_SIZE:
+            return rows
+        start += PAGE_SIZE
+
 
 @router.get("/api/report")
 def get_report():
@@ -14,36 +27,32 @@ def get_report():
     latest_run = run_result.data[0] if run_result.data else None
 
     dataset_result = (
-        supabase.table("datasets")
-        .select("name, source")
-        .eq("is_active", True)
-        .limit(1)
-        .execute()
+        supabase.table("datasets").select("name").eq("is_active", True).execute()
     )
-    if dataset_result.data:
-        row = dataset_result.data[0]
-        dataset_source = row["name"] or row["source"]
+    dataset_names = [row["name"] for row in (dataset_result.data or []) if row["name"]]
+    if len(dataset_names) == 1:
+        dataset_source = dataset_names[0]
+    elif len(dataset_names) > 1:
+        dataset_source = f"{len(dataset_names)} datasets ({', '.join(dataset_names[:2])}, ...)"
     else:
         dataset_source = "Live activity records (Estimate page submissions)"
 
-    records_result = (
-        supabase.table("activity_records")
+    records = fetch_all(
+        lambda: supabase.table("activity_records")
         .select("record_id, submitted_at, total_co2e")
         .order("submitted_at")
-        .execute()
     )
-    records = records_result.data or []
 
     anomaly_record_ids = set()
     if latest_run:
-        anomaly_result = (
-            supabase.table("anomaly_results")
+        anomaly_rows = fetch_all(
+            lambda: supabase.table("anomaly_results")
             .select("record_id")
             .eq("run_id", latest_run["run_id"])
             .eq("is_anomaly", True)
-            .execute()
+            .order("record_id")
         )
-        anomaly_record_ids = {row["record_id"] for row in (anomaly_result.data or [])}
+        anomaly_record_ids = {row["record_id"] for row in anomaly_rows}
 
     daily_totals = defaultdict(float)
     daily_anomalous = defaultdict(bool)
@@ -81,11 +90,14 @@ def get_report():
         anomalies_flagged = 0
         silhouette_score = None
         isolation_contamination = None
-        records_processed = len(records)
-        total_co2e_tonnes = (
-            round(sum(float(r["total_co2e"]) for r in records) / 1000, 2)
-            if records
-            else 0
+        all_totals = fetch_all(
+            lambda: supabase.table("activity_records")
+            .select("record_id, total_co2e")
+            .order("record_id")
+        )
+        records_processed = len(all_totals)
+        total_co2e_tonnes = round(
+            sum(float(r["total_co2e"]) for r in all_totals) / 1000, 2
         )
 
     return {

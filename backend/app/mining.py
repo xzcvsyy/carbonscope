@@ -39,21 +39,34 @@ K_CLUSTERS = 3
 CLUSTER_LABEL_ORDER = ["low_emission", "moderate", "high_emission"]
 ISOLATION_CONTAMINATION = 0.02
 MIN_RECORDS_REQUIRED = 5
+PAGE_SIZE = 1000
+INSERT_CHUNK_SIZE = 500
+SILHOUETTE_SAMPLE_SIZE = 10000
 
 
 def select_data() -> pd.DataFrame:
     """
     Phase 1 — Selection.
-    Pulls the accumulated activity_records into a DataFrame. This is
-    the "target data set" the rest of the KDD process operates on.
+    Pulls the accumulated activity_records into a DataFrame. Supabase
+    returns at most 1,000 rows per request, so this reads page by page
+    until every record has been collected.
     """
-    result = (
-        supabase.table("activity_records")
-        .select("record_id, " + ", ".join(FEATURE_COLUMNS))
-        .execute()
-    )
-    df = pd.DataFrame(result.data)
-    return df
+    rows = []
+    start = 0
+    while True:
+        result = (
+            supabase.table("activity_records")
+            .select("record_id, " + ", ".join(FEATURE_COLUMNS))
+            .order("record_id")
+            .range(start, start + PAGE_SIZE - 1)
+            .execute()
+        )
+        batch = result.data or []
+        rows.extend(batch)
+        if len(batch) < PAGE_SIZE:
+            break
+        start += PAGE_SIZE
+    return pd.DataFrame(rows)
 
 
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
@@ -126,7 +139,12 @@ def evaluate(scaled_features, cluster_indices) -> float:
     """
     if len(set(cluster_indices)) < 2:
         return None
-    return float(silhouette_score(scaled_features, cluster_indices))
+    sample_size = SILHOUETTE_SAMPLE_SIZE if len(cluster_indices) > SILHOUETTE_SAMPLE_SIZE else None
+    return float(
+        silhouette_score(
+            scaled_features, cluster_indices, sample_size=sample_size, random_state=42
+        )
+    )
 
 
 def build_explanation(row: pd.Series) -> str:
@@ -145,6 +163,11 @@ def build_explanation(row: pd.Series) -> str:
         f"Flagged as unusual relative to the rest of the dataset, driven "
         f"largely by {dominant_label} ({parts[dominant]:.1f} kg CO2e)."
     )
+
+
+def insert_in_chunks(table_name: str, rows: list):
+    for start in range(0, len(rows), INSERT_CHUNK_SIZE):
+        supabase.table(table_name).insert(rows[start:start + INSERT_CHUNK_SIZE]).execute()
 
 
 def persist_results(df: pd.DataFrame, silhouette: float, records_processed: int):
@@ -180,7 +203,7 @@ def persist_results(df: pd.DataFrame, silhouette: float, records_processed: int)
         }
         for _, row in df.iterrows()
     ]
-    supabase.table("cluster_results").insert(cluster_rows).execute()
+    insert_in_chunks("cluster_results", cluster_rows)
 
     anomaly_rows = [
         {
@@ -192,7 +215,7 @@ def persist_results(df: pd.DataFrame, silhouette: float, records_processed: int)
         }
         for _, row in df.iterrows()
     ]
-    supabase.table("anomaly_results").insert(anomaly_rows).execute()
+    insert_in_chunks("anomaly_results", anomaly_rows)
 
     supabase.table("processing_log").insert(
         {

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CarbonScope — Anomalies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EFEDFB;
+    --card: #FFFFFF;
+    --border: #E7E5F5;
+    --purple: #5B4FE9;
+    --purple-tint: #EFEDFB;
+    --ink: #14142B;
+    --muted: #6E6E82;
+    --faint: #9A98AC;
+    --alert: #FF6B57;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--card);
+    color: var(--ink);
+    padding: calc(0px + env(safe-area-inset-top, 0px)) 0 calc(0px + env(safe-area-inset-bottom, 0px));
+  }
+
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid #ECECEC;
+    gap: 16px;
+    flex-wrap: wrap;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo-placeholder { width: 28px; height: 28px; border-radius: 7px; background: #D9D9D9; flex-shrink: 0; }
+  .brand-name { font-size: 17px; font-weight: 700; }
+  .nav { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .nav a {
+    text-decoration: none; color: var(--muted); padding: 8px 14px; border-radius: 20px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .nav a:hover { color: var(--ink); }
+  .nav a.active { font-weight: 600; color: var(--purple); background: var(--purple-tint); }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--ink); flex-shrink: 0; }
+
+
+  .page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 40px 32px 60px;
+  }
+
+  .page-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; margin-bottom: 32px; flex-wrap: wrap;
+  }
+  .page-title { font-size: 26px; font-weight: 800; margin: 0 0 6px; }
+  .page-sub { font-size: 14px; color: var(--muted); margin: 0; }
+
+  button.export {
+    background: #FFFFFF; color: var(--ink); border: 1px solid #E3E1F0; border-radius: 20px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+    white-space: nowrap; transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  button.export:hover { background: #F7F6FD; border-color: var(--purple); }
+  button.export:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .anomaly-card {
+    border: 1px solid var(--border); border-radius: 14px; padding: 24px;
+    background: var(--card); cursor: default;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .anomaly-card:hover { border-color: #CFC9F5; box-shadow: 0 4px 18px rgba(91,79,233,0.08); }
+
+  .anomaly-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 12px; }
+  .anomaly-id { font-size: 14px; font-weight: 700; }
+  .anomaly-kg { font-size: 22px; font-weight: 800; color: var(--alert); white-space: nowrap; }
+
+  .anomaly-desc { font-size: 14px; line-height: 1.6; color: var(--muted); margin: 0 0 16px; }
+
+  .anomaly-meta { display: flex; gap: 16px; font-size: 12px; color: var(--faint); }
+
+  .empty-note { text-align: center; font-size: 13px; color: var(--faint); padding: 40px 0; }
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    .header { padding: 16px 20px; }
+    .page { padding: 28px 20px 40px; }
+    .page-title { font-size: 22px; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17162A; --card: #1E1D33; --border: #322F52; --purple: #8B7FFF;
+      --purple-tint: #26234A; --ink: #F3F2FB; --muted: #A9A7C4; --faint: #8683A6;
+      --alert: #FF8A78;
+    }
+    :root:not([data-theme="light"]) .avatar { background: #F3F2FB; }
+    :root:not([data-theme="light"]) .logo-placeholder { background: #3B3968; }
+    :root:not([data-theme="light"]) button.export { background: #24223F; color: var(--ink); border-color: var(--border); }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17162A; --card: #1E1D33; --border: #322F52; --purple: #8B7FFF;
+    --purple-tint: #26234A; --ink: #F3F2FB; --muted: #A9A7C4; --faint: #8683A6;
+    --alert: #FF8A78;
+  }
+  :root[data-theme="dark"] .avatar { background: #F3F2FB; }
+  :root[data-theme="dark"] .logo-placeholder { background: #3B3968; }
+  :root[data-theme="dark"] button.export { background: #24223F; color: var(--ink); border-color: var(--border); }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">
+      <img src="" alt="" class="logo-placeholder">
+      <span class="brand-name">CarbonScope</span>
+    </div>
+    <div class="nav">
+      <a href="landing.html">Estimate</a>
+      <a href="anomalies.html" class="active">Anomalies</a>
+      <a href="reports.html">Reports</a>
+    </div>
+    <div class="avatar"></div>
+  </div>
+
+  <!-- Page content -->
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Flagged anomalies</h1>
+        <p class="page-sub">Records Isolation Forest identified as unusual relative to the rest of the dataset.</p>
+      </div>
+      <button class="export" id="exportBtn">Export flagged</button>
+    </div>
+
+    <div class="grid" id="anomalyGrid"></div>
+  </div>
+
+<script>
+(function () {
+  var anomalies = [
+    {
+      id: 'REC-1038',
+      kg: 134.7,
+      desc: 'Electricity use (428 kWh/week) is roughly 4× the dataset average, with no matching increase in occupancy data.',
+      date: 'Sep 16, 2026',
+      score: -0.61
+    },
+    {
+      id: 'REC-1029',
+      kg: 112.3,
+      desc: 'Combines a high-emission transport mode with unusually high paper use — an uncommon pairing in this dataset.',
+      date: 'Sep 11, 2026',
+      score: -0.54
+    },
+    {
+      id: 'REC-1017',
+      kg: 3.1,
+      desc: 'Unusually low across every category at once — possibly an incomplete submission rather than genuinely low activity.',
+      date: 'Sep 6, 2026',
+      score: -0.49
+    },
+    {
+      id: 'REC-1004',
+      kg: 98.6,
+      desc: 'Distance traveled (280 km/week) sits far outside the typical range recorded for this transport mode.',
+      date: 'Sep 2, 2026',
+      score: -0.45
+    }
+  ];
+
+  var grid = document.getElementById('anomalyGrid');
+
+  function render(list) {
+    grid.innerHTML = '';
+    if (!list.length) {
+      var empty = document.createElement('div');
+      empty.className = 'empty-note';
+      empty.textContent = 'No flagged anomalies to show.';
+      grid.appendChild(empty);
+      return;
+    }
+    list.forEach(function (a) {
+      var card = document.createElement('div');
+      card.className = 'anomaly-card';
+      card.innerHTML =
+        '<div class="anomaly-top">' +
+          '<span class="anomaly-id">' + a.id + '</span>' +
+          '<span class="anomaly-kg">' + a.kg.toFixed(1) + ' kg</span>' +
+        '</div>' +
+        '<p class="anomaly-desc">' + a.desc + '</p>' +
+        '<div class="anomaly-meta">' +
+          '<span>' + a.date + '</span>' +
+          '<span>Score: ' + a.score.toFixed(2) + '</span>' +
+        '</div>';
+      grid.appendChild(card);
+    });
+  }
+
+  function toCSV(list) {
+    var rows = [['id', 'kg_co2e', 'description', 'date', 'score']];
+    list.forEach(function (a) {
+      rows.push([a.id, a.kg, '"' + a.desc.replace(/"/g, '""') + '"', a.date, a.score]);
+    });
+    return rows.map(function (r) { return r.join(','); }).join('\n');
+  }
+
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    var csv = toCSV(anomalies);
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'flagged-anomalies.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  render(anomalies);
+})();
+</script>
+
+</body>
+</html>
