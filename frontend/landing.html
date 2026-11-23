@@ -93,6 +93,26 @@
   .panel-sub { font-size: 13px; color: var(--faint); margin-bottom: 26px; }
 
   .field-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  [hidden] { display: none !important; }
+
+  .seg { display: flex; gap: 4px; background: var(--track); border-radius: 10px; padding: 4px; margin-bottom: 18px; }
+  .seg-btn {
+    flex: 1; border: none; background: transparent; color: var(--muted); font-family: inherit;
+    font-size: 13px; font-weight: 600; padding: 9px 10px; border-radius: 7px; cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  .seg-btn.active { background: var(--card); color: var(--purple); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+  .seg-btn:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+  select.route-select { margin-bottom: 16px; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 22px; cursor: pointer; }
+  .check input { accent-color: var(--purple); width: 16px; height: 16px; margin: 0; cursor: pointer; }
+  .route-summary {
+    background: var(--purple-tint); border: 1px solid var(--purple-tint-border); border-radius: 10px;
+    padding: 12px 14px; font-size: 13px; line-height: 1.6; margin-bottom: 24px;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+  .route-summary strong { color: var(--purple); font-weight: 700; }
+  .route-summary small { display: block; color: var(--faint); font-size: 11px; margin-top: 2px; }
 
   select.dropdown {
     width: 100%; appearance: none; -webkit-appearance: none; -moz-appearance: none;
@@ -136,7 +156,7 @@
     padding: 15px; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer;
     transition: background 0.15s ease, transform 0.1s ease;
   }
-  button.cta:hover { background: #4C41D6; }
+  button.cta:hover { background: var(--purple-hover, #4C41D6); }
   button.cta:active { transform: scale(0.99); }
   button.cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
@@ -145,11 +165,16 @@
   .result-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 12px; }
   .badge {
     font-size: 12px; font-weight: 600; border-radius: 12px; padding: 4px 12px; white-space: nowrap;
-    transition: background 0.2s ease, color 0.2s ease;
+    color: var(--purple); background: var(--purple-tint);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .eyebrow, .nav a.active, button.cta, .bd-fill, .bd-track, input[type="range"] {
+    transition-property: background-color, color, border-color, width, transform;
+    transition-duration: 0.3s;
   }
 
   .total-wrap { text-align: center; margin-bottom: 28px; }
-  .total-value { font-size: 56px; font-weight: 800; line-height: 1; transition: color 0.2s ease; }
+  .total-value { font-size: 56px; font-weight: 800; line-height: 1; color: var(--purple); transition: color 0.3s ease; }
   .total-label { font-size: 13px; color: var(--faint); margin-top: 6px; }
 
   .bd-row { display: flex; align-items: center; margin-bottom: 14px; }
@@ -248,12 +273,38 @@
           <option value="bicycle_walking">Bicycle / walking (0 kg CO2e per km)</option>
         </select>
 
-        <div class="slider-row">
-          <span class="slider-name">Distance travelled</span>
-          <span class="slider-unit">km / week</span>
+        <div class="field-label">Distance travelled</div>
+        <div class="seg" role="group" aria-label="How to set distance">
+          <button type="button" class="seg-btn active" id="modeRoute">Pick route</button>
+          <button type="button" class="seg-btn" id="modeManual">Enter km</button>
         </div>
-        <input type="range" id="distance" min="0" max="300" step="1" value="85">
-        <div class="slider-value" id="distanceVal">85</div>
+
+        <div id="routeGroup">
+          <div class="field-label">From</div>
+          <select class="dropdown route-select" id="routeFrom"></select>
+          <div class="field-label">To (CvSU campus)</div>
+          <select class="dropdown route-select" id="routeTo"></select>
+
+          <label class="check"><input type="checkbox" id="roundTrip" checked> Round trip (pa-uwi rin)</label>
+
+          <div class="slider-row">
+            <span class="slider-name">Days travelled</span>
+            <span class="slider-unit">days / week</span>
+          </div>
+          <input type="range" id="tripDays" min="1" max="7" step="1" value="5">
+          <div class="slider-value" id="tripDaysVal">5</div>
+
+          <div class="route-summary" id="routeSummary"></div>
+        </div>
+
+        <div id="manualGroup" hidden>
+          <div class="slider-row">
+            <span class="slider-name">Distance travelled</span>
+            <span class="slider-unit">km / week</span>
+          </div>
+          <input type="range" id="distance" min="0" max="300" step="1" value="85">
+          <div class="slider-value" id="distanceVal">85</div>
+        </div>
 
         <div class="slider-row">
           <span class="slider-name">Electricity use</span>
@@ -394,6 +445,116 @@
 
   function fmt(n) { return n.toFixed(1); }
 
+  // ---- Route picker ----
+  // Coordinates are approximate. Edit lat/lng here to fine-tune any point.
+  var ROAD_FACTOR = 1.35; // straight-line distance -> estimated road distance
+  var ORIGINS = [
+    { id: 'pala_pala',    name: 'Pala-pala',        lat: 14.3420, lng: 120.9450 },
+    { id: 'sm_trece',     name: 'SM Trece',         lat: 14.2830, lng: 120.8640 },
+    { id: 'manggahan',    name: 'Manggahan Gentri', lat: 14.3600, lng: 120.9040 },
+    { id: 'dasma_bayan',  name: 'Dasma Bayan',      lat: 14.3294, lng: 120.9367 },
+    { id: 'lumina_imus',  name: 'Lumina Imus',      lat: 14.4010, lng: 120.9300 },
+    { id: 'alulod',       name: 'Alulod',           lat: 14.2020, lng: 120.8890 },
+    { id: 'amadeo',       name: 'Amadeo Savemore',  lat: 14.1700, lng: 120.9230 },
+    { id: 'tagaytay',     name: 'Tagaytay',         lat: 14.1153, lng: 120.9621 },
+    { id: 'mendez',       name: 'Mendez',           lat: 14.1286, lng: 120.9050 },
+    { id: 'alfonso',      name: 'Alfonso',          lat: 14.1393, lng: 120.8569 },
+    { id: 'bailen',       name: 'Bailen',           lat: 14.1850, lng: 120.7870 }
+  ];
+  var CAMPUSES = [
+    { id: 'main',       name: 'CvSU Main (Indang)',            lat: 14.1988, lng: 120.8815 },
+    { id: 'rosario',    name: 'CvSU Rosario (CCAT)',           lat: 14.4130, lng: 120.8560 },
+    { id: 'naic',       name: 'CvSU Naic',                     lat: 14.3180, lng: 120.7650 },
+    { id: 'cavite',     name: 'CvSU Cavite City',              lat: 14.4640, lng: 120.8870 },
+    { id: 'carmona',    name: 'CvSU Carmona',                  lat: 14.3125, lng: 121.0570 },
+    { id: 'imus',       name: 'CvSU Imus',                     lat: 14.4010, lng: 120.9380 },
+    { id: 'trece',      name: 'CvSU Trece Martires',           lat: 14.2860, lng: 120.8660 },
+    { id: 'silang',     name: 'CvSU Silang',                   lat: 14.2270, lng: 120.9760 },
+    { id: 'tanza',      name: 'CvSU Tanza',                    lat: 14.3380, lng: 120.8530 },
+    { id: 'bacoor',     name: 'CvSU Bacoor',                   lat: 14.4180, lng: 120.9770 },
+    { id: 'gentri',     name: 'CvSU General Trias',            lat: 14.3800, lng: 120.8800 },
+    { id: 'maragondon', name: 'CvSU Maragondon',               lat: 14.2740, lng: 120.7360 },
+    { id: 'dasma_lc',   name: 'CvSU Dasmariñas Learning Center', lat: 14.3300, lng: 120.9380 }
+  ];
+
+  var routeFromEl = document.getElementById('routeFrom');
+  var routeToEl = document.getElementById('routeTo');
+  var roundTripEl = document.getElementById('roundTrip');
+  var tripDaysEl = document.getElementById('tripDays');
+  var tripDaysValEl = document.getElementById('tripDaysVal');
+  var routeSummaryEl = document.getElementById('routeSummary');
+  var routeGroupEl = document.getElementById('routeGroup');
+  var manualGroupEl = document.getElementById('manualGroup');
+  var modeRouteBtn = document.getElementById('modeRoute');
+  var modeManualBtn = document.getElementById('modeManual');
+  var distanceMode = 'route';
+
+  function fillSelect(el, items, selectedId) {
+    items.forEach(function (item) {
+      var opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.name;
+      if (item.id === selectedId) opt.selected = true;
+      el.appendChild(opt);
+    });
+  }
+  function byName(a, b) { return a.name.localeCompare(b.name); }
+  ORIGINS.sort(byName);
+  CAMPUSES.sort(byName);
+  fillSelect(routeFromEl, ORIGINS, 'dasma_bayan');
+  fillSelect(routeToEl, CAMPUSES, 'imus');
+
+  function findById(list, id) {
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return list[0];
+  }
+
+  function haversineKm(a, b) {
+    var R = 6371, rad = Math.PI / 180;
+    var dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  function routeOneWayKm() {
+    var from = findById(ORIGINS, routeFromEl.value);
+    var to = findById(CAMPUSES, routeToEl.value);
+    return Math.round(haversineKm(from, to) * ROAD_FACTOR * 10) / 10;
+  }
+
+  function routeWeeklyKm() {
+    var legs = roundTripEl.checked ? 2 : 1;
+    return Math.round(routeOneWayKm() * legs * parseFloat(tripDaysEl.value) * 10) / 10;
+  }
+
+  function getDistance() {
+    return distanceMode === 'route' ? routeWeeklyKm() : parseFloat(distanceEl.value);
+  }
+
+  function updateRouteSummary() {
+    var oneWay = routeOneWayKm();
+    var legs = roundTripEl.checked ? 2 : 1;
+    var days = parseFloat(tripDaysEl.value);
+    var weekly = routeWeeklyKm();
+    routeSummaryEl.innerHTML =
+      '<strong>' + oneWay.toFixed(1) + ' km</strong> one-way × ' + legs + (legs === 2 ? ' (round trip)' : ' (one-way only)') +
+      ' × ' + days + ' day' + (days === 1 ? '' : 's') + ' = <strong>' + weekly.toFixed(1) + ' km / week</strong>' +
+      '<small>Estimated road distance — actual may vary with the route taken.</small>';
+  }
+
+  function setDistanceMode(mode) {
+    distanceMode = mode;
+    var isRoute = mode === 'route';
+    routeGroupEl.hidden = !isRoute;
+    manualGroupEl.hidden = isRoute;
+    modeRouteBtn.classList.toggle('active', isRoute);
+    modeManualBtn.classList.toggle('active', !isRoute);
+    preview();
+  }
+  modeRouteBtn.addEventListener('click', function () { setDistanceMode('route'); });
+  modeManualBtn.addEventListener('click', function () { setDistanceMode('manual'); });
+
   function updateSliderFill(el) {
     var min = parseFloat(el.min), max = parseFloat(el.max), val = parseFloat(el.value);
     var pct = ((val - min) / (max - min)) * 100;
@@ -402,16 +563,50 @@
 
 
   function previewClassify(total) {
-    if (total < 20) return { label: 'Low', color: '#1F9D55', bg: '#E7F8EE' };
-    if (total < 45) return { label: 'Moderate', color: '#5B4FE9', bg: '#EFEDFB' };
-    return { label: 'High', color: '#B4790A', bg: '#FBF0DC' };
+    if (total < 20) return { label: 'Low', cluster: 'Low emission' };
+    if (total < 45) return { label: 'Moderate', cluster: 'Moderate emission' };
+    return { label: 'High', cluster: 'High emission' };
   }
 
   var CLUSTER_DISPLAY = {
-    low_emission: { label: 'Low', cluster: 'Low emission', color: '#1F9D55', bg: '#E7F8EE' },
-    moderate: { label: 'Moderate', cluster: 'Moderate emission', color: '#5B4FE9', bg: '#EFEDFB' },
-    high_emission: { label: 'High', cluster: 'High emission', color: '#C23B3B', bg: '#FBE7E7' }
+    low_emission: { label: 'Low', cluster: 'Low emission' },
+    moderate: { label: 'Moderate', cluster: 'Moderate emission' },
+    high_emission: { label: 'High', cluster: 'High emission' }
   };
+
+  // Live theme: green (low) -> amber (mid) -> red (high), based on total kg CO2e
+  var THEME_LOW = 15;   // at or below this = full green
+  var THEME_HIGH = 75;  // at or above this = full red
+  var darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function isDark() {
+    var forced = document.documentElement.getAttribute('data-theme');
+    if (forced === 'dark') return true;
+    if (forced === 'light') return false;
+    return !!(darkQuery && darkQuery.matches);
+  }
+
+  function applyTheme(total) {
+    var t = Math.max(0, Math.min(1, (total - THEME_LOW) / (THEME_HIGH - THEME_LOW)));
+    var h = Math.round(145 * (1 - t)); // 145 = green, 0 = red
+    var dark = isDark();
+    var s = document.documentElement.style;
+    if (dark) {
+      s.setProperty('--purple', 'hsl(' + h + ', 75%, 60%)');
+      s.setProperty('--purple-hover', 'hsl(' + h + ', 75%, 54%)');
+      s.setProperty('--purple-tint', 'hsl(' + h + ', 35%, 17%)');
+      s.setProperty('--purple-tint-border', 'hsl(' + h + ', 30%, 27%)');
+      s.setProperty('--border-strong', 'hsl(' + h + ', 70%, 60%)');
+      s.setProperty('--track', 'hsl(' + h + ', 18%, 22%)');
+    } else {
+      s.setProperty('--purple', 'hsl(' + h + ', 72%, 36%)');
+      s.setProperty('--purple-hover', 'hsl(' + h + ', 72%, 30%)');
+      s.setProperty('--purple-tint', 'hsl(' + h + ', 80%, 94%)');
+      s.setProperty('--purple-tint-border', 'hsl(' + h + ', 65%, 84%)');
+      s.setProperty('--border-strong', 'hsl(' + h + ', 72%, 36%)');
+      s.setProperty('--track', 'hsl(' + h + ', 25%, 92%)');
+    }
+  }
 
   function estimatePercentile(total) {
     var pct = Math.max(1, Math.min(99, Math.round(100 - (total / 120) * 100)));
@@ -419,7 +614,7 @@
   }
 
   function currentBreakdown() {
-    var distance = parseFloat(distanceEl.value);
+    var distance = getDistance();
     var electricity = parseFloat(electricityEl.value);
     var devices = parseFloat(devicesEl.value);
     var paper = parseFloat(paperEl.value);
@@ -448,6 +643,8 @@
 
   function preview() {
     distanceValEl.textContent = distanceEl.value;
+    tripDaysValEl.textContent = tripDaysEl.value;
+    updateRouteSummary();
     electricityValEl.textContent = electricityEl.value;
     devicesValEl.textContent = devicesEl.value;
     paperValEl.textContent = paperEl.value;
@@ -458,18 +655,16 @@
 
     var cls = previewClassify(total);
     badgeEl.textContent = cls.label;
-    badgeEl.style.color = cls.color;
-    badgeEl.style.background = cls.bg;
-    totalValueEl.style.color = cls.color;
+    applyTheme(total);
     percentileLabelEl.textContent = 'Top ' + estimatePercentile(total) + '%';
 
-    [distanceEl, electricityEl, devicesEl, paperEl].forEach(updateSliderFill);
+    [distanceEl, electricityEl, devicesEl, paperEl, tripDaysEl].forEach(updateSliderFill);
   }
 
   function submitEstimate() {
     var payload = {
       transport_subtype: transportModeEl.value,
-      distance_km: parseFloat(distanceEl.value),
+      distance_km: getDistance(),
       electricity_kwh: parseFloat(electricityEl.value),
       device_hours_per_day: parseFloat(devicesEl.value),
       paper_sheets: parseFloat(paperEl.value),
@@ -509,9 +704,7 @@
 
         var cls = CLUSTER_DISPLAY[data.nearest_cluster] || previewClassify(b.total_co2e);
         badgeEl.textContent = cls.label;
-        badgeEl.style.color = cls.color;
-        badgeEl.style.background = cls.bg;
-        totalValueEl.style.color = cls.color;
+        applyTheme(b.total_co2e);
         summaryBoxEl.innerHTML = '<strong>' + fmt(b.total_co2e) + ' kg CO2e</strong> falls within the ' +
           '<span class="summary-cluster">' + cls.cluster + '</span> cluster.';
         clusterLabelEl.textContent = cls.cluster;
@@ -526,14 +719,19 @@
       })
       .finally(function () {
         estimateBtn.disabled = false;
-        estimateBtn.textContent = 'Estimate carbon footprint';
+        estimateBtn.textContent = 'Estimate carbon foorprint';
       });
   }
 
-  [distanceEl, electricityEl, devicesEl, paperEl, transportModeEl, foodPatternEl].forEach(function (el) {
+  [distanceEl, electricityEl, devicesEl, paperEl, transportModeEl, foodPatternEl,
+   routeFromEl, routeToEl, roundTripEl, tripDaysEl].forEach(function (el) {
     el.addEventListener('input', preview);
     el.addEventListener('change', preview);
   });
+
+  if (darkQuery && darkQuery.addEventListener) {
+    darkQuery.addEventListener('change', preview);
+  }
 
   estimateBtn.addEventListener('click', function (e) {
     e.preventDefault();
