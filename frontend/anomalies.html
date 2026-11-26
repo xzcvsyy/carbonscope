@@ -9,15 +9,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #EFEDFB;
+    --bg: #F8F8F5;
     --card: #FFFFFF;
-    --border: #E7E5F5;
-    --purple: #5B4FE9;
-    --purple-tint: #EFEDFB;
-    --ink: #14142B;
-    --muted: #6E6E82;
-    --faint: #9A98AC;
+    --border: #ECEBE3;
+    --accent: #9A8D14;
+    --accent-tint: #FBF6CF;
+    --accent-hover-border: #D8CF7A;
+    --accent-shadow: rgba(154,141,20,0.10);
+    --ink: #111827;
+    --muted: #6B6F76;
+    --faint: #9A9C9F;
     --alert: #FF6B57;
+    --header-line: #ECECEC;
+    --button-bg: #FFFFFF;
+    --button-border: #E5E3D6;
+    --button-hover-bg: #FAF8E6;
+    --avatar: #111827;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -35,23 +42,29 @@
     align-items: center;
     justify-content: space-between;
     padding: 18px 32px;
-    border-bottom: 1px solid #ECECEC;
+    border-bottom: 1px solid var(--header-line);
     gap: 16px;
     flex-wrap: wrap;
     max-width: 1400px;
     margin: 0 auto;
   }
   .brand { display: flex; align-items: center; gap: 10px; }
-  .logo-placeholder { width: 28px; height: 28px; border-radius: 7px; background: #D9D9D9; flex-shrink: 0; }
-  .brand-name { font-size: 17px; font-weight: 700; }
+  .logo-placeholder { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; display: block; }
+  .brand-name {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--ink);
+  }
+  .brand-name .accent { color: var(--accent); }
   .nav { display: flex; align-items: center; gap: 8px; font-size: 14px; }
   .nav a {
     text-decoration: none; color: var(--muted); padding: 8px 14px; border-radius: 20px;
     transition: background 0.15s ease, color 0.15s ease;
   }
   .nav a:hover { color: var(--ink); }
-  .nav a.active { font-weight: 600; color: var(--purple); background: var(--purple-tint); }
-  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--ink); flex-shrink: 0; }
+  .nav a.active { font-weight: 600; color: var(--accent); background: var(--accent-tint); }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--avatar); flex-shrink: 0; }
 
 
   .page {
@@ -68,12 +81,12 @@
   .page-sub { font-size: 14px; color: var(--muted); margin: 0; }
 
   button.export {
-    background: #FFFFFF; color: var(--ink); border: 1px solid #E3E1F0; border-radius: 20px;
+    background: var(--button-bg); color: var(--ink); border: 1px solid var(--button-border); border-radius: 20px;
     padding: 10px 18px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
     white-space: nowrap; transition: background 0.15s ease, border-color 0.15s ease;
   }
-  button.export:hover { background: #F7F6FD; border-color: var(--purple); }
-  button.export:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+  button.export:hover { background: var(--button-hover-bg); border-color: var(--accent); }
+  button.export:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   .grid {
     display: grid;
@@ -86,7 +99,7 @@
     background: var(--card); cursor: default;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  .anomaly-card:hover { border-color: #CFC9F5; box-shadow: 0 4px 18px rgba(91,79,233,0.08); }
+  .anomaly-card:hover { border-color: var(--accent-hover-border); box-shadow: 0 4px 18px var(--accent-shadow); }
 
   .anomaly-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 12px; }
   .anomaly-id { font-size: 14px; font-weight: 700; }
@@ -107,22 +120,22 @@
 
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #17162A; --card: #1E1D33; --border: #322F52; --purple: #8B7FFF;
-      --purple-tint: #26234A; --ink: #F3F2FB; --muted: #A9A7C4; --faint: #8683A6;
-      --alert: #FF8A78;
+      --bg: #16160F; --card: #1E1E15; --border: #36362A;
+      --accent: #D4C73A; --accent-tint: #3A3614; --accent-hover-border: #6B6420;
+      --accent-shadow: rgba(212,199,58,0.12);
+      --ink: #F5F4EA; --muted: #B0AE9A; --faint: #8C8A78; --alert: #FF8A78;
+      --header-line: #36362A; --button-bg: #26261B; --button-border: #36362A;
+      --button-hover-bg: #2E2E20; --avatar: #F5F4EA;
     }
-    :root:not([data-theme="light"]) .avatar { background: #F3F2FB; }
-    :root:not([data-theme="light"]) .logo-placeholder { background: #3B3968; }
-    :root:not([data-theme="light"]) button.export { background: #24223F; color: var(--ink); border-color: var(--border); }
   }
   :root[data-theme="dark"] {
-    --bg: #17162A; --card: #1E1D33; --border: #322F52; --purple: #8B7FFF;
-    --purple-tint: #26234A; --ink: #F3F2FB; --muted: #A9A7C4; --faint: #8683A6;
-    --alert: #FF8A78;
+    --bg: #16160F; --card: #1E1E15; --border: #36362A;
+    --accent: #D4C73A; --accent-tint: #3A3614; --accent-hover-border: #6B6420;
+    --accent-shadow: rgba(212,199,58,0.12);
+    --ink: #F5F4EA; --muted: #B0AE9A; --faint: #8C8A78; --alert: #FF8A78;
+    --header-line: #36362A; --button-bg: #26261B; --button-border: #36362A;
+    --button-hover-bg: #2E2E20; --avatar: #F5F4EA;
   }
-  :root[data-theme="dark"] .avatar { background: #F3F2FB; }
-  :root[data-theme="dark"] .logo-placeholder { background: #3B3968; }
-  :root[data-theme="dark"] button.export { background: #24223F; color: var(--ink); border-color: var(--border); }
 </style>
 </head>
 <body>
@@ -130,8 +143,8 @@
   <!-- Header -->
   <div class="header">
     <div class="brand">
-      <img src="" alt="" class="logo-placeholder">
-      <span class="brand-name">CarbonScope</span>
+      <img src="carbonscope-icon.svg" alt="CarbonScope logo" class="logo-placeholder">
+      <span class="brand-name">Carbon<span class="accent">Scope</span></span>
     </div>
     <div class="nav">
       <a href="landing.html">Estimate</a>
