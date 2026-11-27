@@ -109,6 +109,7 @@
 
   .anomaly-meta { display: flex; gap: 16px; font-size: 12px; color: var(--faint); }
 
+  .api-error { display: none; margin-bottom: 20px; padding: 12px 16px; border-radius: 10px; font-size: 13px; color: var(--alert); border: 1px solid var(--alert); }
   .empty-note { text-align: center; font-size: 13px; color: var(--faint); padding: 40px 0; }
 
   @media (max-width: 760px) {
@@ -147,7 +148,7 @@
       <span class="brand-name">Carbon<span class="accent">Scope</span></span>
     </div>
     <div class="nav">
-      <a href="landing.html">Estimate</a>
+      <a href="index.html">Estimate</a>
       <a href="anomalies.html" class="active">Anomalies</a>
       <a href="reports.html">Reports</a>
     </div>
@@ -164,51 +165,47 @@
       <button class="export" id="exportBtn">Export flagged</button>
     </div>
 
+    <div class="api-error" id="apiError"></div>
     <div class="grid" id="anomalyGrid"></div>
   </div>
 
 <script>
 (function () {
-  var anomalies = [
-    {
-      id: 'REC-1038',
-      kg: 134.7,
-      desc: 'Electricity use (428 kWh/week) is roughly 4× the dataset average, with no matching increase in occupancy data.',
-      date: 'Sep 16, 2026',
-      score: -0.61
-    },
-    {
-      id: 'REC-1029',
-      kg: 112.3,
-      desc: 'Combines a high-emission transport mode with unusually high paper use — an uncommon pairing in this dataset.',
-      date: 'Sep 11, 2026',
-      score: -0.54
-    },
-    {
-      id: 'REC-1017',
-      kg: 3.1,
-      desc: 'Unusually low across every category at once — possibly an incomplete submission rather than genuinely low activity.',
-      date: 'Sep 6, 2026',
-      score: -0.49
-    },
-    {
-      id: 'REC-1004',
-      kg: 98.6,
-      desc: 'Distance traveled (280 km/week) sits far outside the typical range recorded for this transport mode.',
-      date: 'Sep 2, 2026',
-      score: -0.45
-    }
-  ];
+  var API_BASE_URL = (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://127.0.0.1:8000' : 'https://PALITAN-MO-ITO.onrender.com';
 
+  var anomalies = [];
   var grid = document.getElementById('anomalyGrid');
+  var apiErrorEl = document.getElementById('apiError');
+  var exportBtn = document.getElementById('exportBtn');
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function formatDate(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function shortId(recordId) {
+    return 'REC-' + String(recordId).replace(/-/g, '').slice(0, 8).toUpperCase();
+  }
+
+  function setMessage(text) {
+    grid.innerHTML = '';
+    var note = document.createElement('div');
+    note.className = 'empty-note';
+    note.textContent = text;
+    grid.appendChild(note);
+  }
 
   function render(list) {
     grid.innerHTML = '';
     if (!list.length) {
-      var empty = document.createElement('div');
-      empty.className = 'empty-note';
-      empty.textContent = 'No flagged anomalies to show.';
-      grid.appendChild(empty);
+      setMessage('No flagged anomalies to show.');
       return;
     }
     list.forEach(function (a) {
@@ -216,27 +213,33 @@
       card.className = 'anomaly-card';
       card.innerHTML =
         '<div class="anomaly-top">' +
-          '<span class="anomaly-id">' + a.id + '</span>' +
+          '<span class="anomaly-id">' + escapeHtml(a.id) + '</span>' +
           '<span class="anomaly-kg">' + a.kg.toFixed(1) + ' kg</span>' +
         '</div>' +
-        '<p class="anomaly-desc">' + a.desc + '</p>' +
+        '<p class="anomaly-desc">' + escapeHtml(a.desc) + '</p>' +
         '<div class="anomaly-meta">' +
-          '<span>' + a.date + '</span>' +
+          '<span>' + escapeHtml(a.date) + '</span>' +
           '<span>Score: ' + a.score.toFixed(2) + '</span>' +
         '</div>';
       grid.appendChild(card);
     });
   }
 
+  // RFC 4180: wrap every field in quotes and double any embedded quotes,
+  // so values containing commas (e.g. "Sep 16, 2026") stay in one column.
+  function csvField(value) {
+    return '"' + String(value).replace(/"/g, '""') + '"';
+  }
+
   function toCSV(list) {
     var rows = [['id', 'kg_co2e', 'description', 'date', 'score']];
     list.forEach(function (a) {
-      rows.push([a.id, a.kg, '"' + a.desc.replace(/"/g, '""') + '"', a.date, a.score]);
+      rows.push([a.id, a.kg, a.desc, a.date, a.score]);
     });
-    return rows.map(function (r) { return r.join(','); }).join('\n');
+    return rows.map(function (r) { return r.map(csvField).join(','); }).join('\r\n');
   }
 
-  document.getElementById('exportBtn').addEventListener('click', function () {
+  exportBtn.addEventListener('click', function () {
     var csv = toCSV(anomalies);
     var blob = new Blob([csv], { type: 'text/csv' });
     var url = URL.createObjectURL(blob);
@@ -249,7 +252,39 @@
     URL.revokeObjectURL(url);
   });
 
-  render(anomalies);
+  function load() {
+    setMessage('Loading flagged anomalies…');
+    fetch(API_BASE_URL + '/api/anomalies')
+      .then(function (res) {
+        if (!res.ok) throw new Error('Server responded with ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        apiErrorEl.style.display = 'none';
+        anomalies = (data.anomalies || []).map(function (r) {
+          return {
+            id: shortId(r.record_id),
+            kg: Number(r.total_co2e),
+            desc: r.explanation,
+            date: formatDate(r.submitted_at),
+            score: Number(r.anomaly_score)
+          };
+        });
+        if (!data.has_mining_run) {
+          setMessage('Analysis has not been run yet. Flagged records will appear here once enough data has been collected and analysed.');
+          return;
+        }
+        render(anomalies);
+      })
+      .catch(function (err) {
+        anomalies = [];
+        grid.innerHTML = '';
+        apiErrorEl.textContent = 'Could not reach the server: ' + err.message + '. Make sure uvicorn is running.';
+        apiErrorEl.style.display = 'block';
+      });
+  }
+
+  load();
 })();
 </script>
 

@@ -61,8 +61,8 @@ an interim cluster label — and you'll see a new row appear in
 - Add the K-Means + Isolation Forest mining job (reads all of
   `activity_records`, writes to `mining_runs`, `cluster_results`,
   `anomaly_results`).
-- Add `GET /api/anomalies` and `GET /api/report` endpoints for those
-  frontend pages.
+- `GET /api/report`, `GET /api/anomalies` and `GET /api/accumulated`
+  feed the Reports, Anomalies and Estimate pages.
 - Deploy to Render, point `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` at
   the same project, and update the frontend's fetch calls to the
   deployed URL.

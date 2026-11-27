@@ -202,7 +202,7 @@
       <span class="brand-name">Carbon<span class="accent">Scope</span></span>
     </div>
     <div class="nav">
-      <a href="landing.html">Estimate</a>
+      <a href="index.html">Estimate</a>
       <a href="anomalies.html">Anomalies</a>
       <a href="reports.html" class="active">Reports</a>
     </div>
@@ -219,10 +219,7 @@
     </div>
 
     <div class="api-error" id="apiError"></div>
-    <div class="notice" id="noRunNotice">
-      No mining run yet. The numbers below are based on raw activity_records only. Run
-      <code>python -m app.mining</code> in your backend to see real K-Means clustering and Isolation Forest results.
-    </div>
+    <div class="notice" id="noRunNotice"><span id="noRunText"></span></div>
 
     <div class="stats-row">
       <div class="stat-card">
@@ -280,7 +277,7 @@
 
 <script>
 (function () {
-  var API_BASE_URL = 'http://127.0.0.1:8000';
+  var API_BASE_URL = (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://127.0.0.1:8000' : 'https://PALITAN-MO-ITO.onrender.com';
 
   var totalCo2eEl = document.getElementById('totalCo2e');
   var statTagEl = document.getElementById('statTag');
@@ -295,6 +292,7 @@
   var contaminationEl = document.getElementById('contamination');
   var datasetSourceEl = document.getElementById('datasetSource');
   var noRunNoticeEl = document.getElementById('noRunNotice');
+  var noRunTextEl = document.getElementById('noRunText');
   var apiErrorEl = document.getElementById('apiError');
 
   function renderChart(weeklyTrend) {
@@ -331,12 +329,13 @@
         totalCo2eEl.textContent = data.total_co2e_tonnes + 't';
         statTagEl.textContent = data.has_mining_run ? 'records ready' : 'raw data only';
         recordsProcessedEl.textContent = data.records_processed.toLocaleString();
-        anomaliesFlaggedEl.textContent = data.anomalies_flagged;
+        var ran = data.has_mining_run;
+        anomaliesFlaggedEl.textContent = ran ? data.anomalies_flagged : '\u2014';
 
-        countLowEl.textContent = data.cluster_distribution.low_emission;
-        countModerateEl.textContent = data.cluster_distribution.moderate;
-        countHighEl.textContent = data.cluster_distribution.high_emission;
-        countAnomalyEl.textContent = data.anomalies_flagged;
+        countLowEl.textContent = ran ? data.cluster_distribution.low_emission : '\u2014';
+        countModerateEl.textContent = ran ? data.cluster_distribution.moderate : '\u2014';
+        countHighEl.textContent = ran ? data.cluster_distribution.high_emission : '\u2014';
+        countAnomalyEl.textContent = ran ? data.anomalies_flagged : '\u2014';
 
         silhouetteScoreEl.textContent = data.silhouette_score !== null && data.silhouette_score !== undefined
           ? Number(data.silhouette_score).toFixed(2)
@@ -346,6 +345,12 @@
           : 'Not yet available';
         datasetSourceEl.textContent = data.dataset_source;
 
+        if (!data.has_mining_run) {
+          noRunTextEl.textContent = data.meets_minimum
+            ? 'The minimum of ' + data.records_required + ' records has been reached. Analysis has not been run yet; the results will appear here once it completes.'
+            : 'More data is needed before the analysis can run: ' + data.records_collected + ' of ' + data.records_required +
+              ' records collected. Keep submitting estimates on the Estimate page.';
+        }
         noRunNoticeEl.style.display = data.has_mining_run ? 'none' : 'block';
         apiErrorEl.style.display = 'none';
 

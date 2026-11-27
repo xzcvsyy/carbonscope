@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.estimate import router as estimate_router
 from app.report import router as report_router
+from app.anomalies import router as anomalies_router
+from app.accumulated import router as accumulated_router
 
 app = FastAPI(title="CarbonScope API")
 
@@ -14,6 +16,8 @@ app.add_middleware(
 
 app.include_router(estimate_router)
 app.include_router(report_router)
+app.include_router(anomalies_router)
+app.include_router(accumulated_router)
 
 
 @app.get("/")

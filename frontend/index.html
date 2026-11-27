@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CarbonScope — Estimate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* NOTE: --purple / --purple-tint etc. keep their names because the script below
+     overrides them live (green → amber → red) based on the estimated total.
+     The values here are the olive defaults used before the first estimate runs. */
+  :root {
+    --bg: #F8F8F5;
+    --card: #FFFFFF;
+    --card-alt: #FAFAF7;
+    --border: #ECEBE3;
+    --border-strong: #9A8D14;
+    --purple: #9A8D14;
+    --purple-tint: #FBF6CF;
+    --purple-tint-border: #EADFA0;
+    --track: #ECEBE3;
+    --ink: #111827;
+    --muted: #6B6F76;
+    --faint: #9A9C9F;
+    --faintest: #B4B5B8;
+    --brand-accent: #9A8D14;
+    --input-border: #E5E3D6;
+    --header-line: #ECECEC;
+    --avatar: #111827;
+    --summary-bg: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--card);
+    color: var(--ink);
+    padding: calc(0px + env(safe-area-inset-top, 0px)) 0 calc(0px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .shell {
+    width: 100%;
+    background: var(--card);
+  }
+
+  .panels-outer {
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--header-line);
+    gap: 16px;
+    flex-wrap: wrap;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo-placeholder {
+    width: 32px; height: 32px; border-radius: 8px;
+    flex-shrink: 0; display: block;
+  }
+  .brand-name {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--ink);
+  }
+  .brand-name .accent { color: var(--brand-accent); }
+  .nav { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .nav a {
+    text-decoration: none; color: var(--muted); padding: 8px 14px; border-radius: 20px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .nav a:hover { color: var(--ink); }
+  .nav a.active { font-weight: 600; color: var(--purple); background: var(--purple-tint); }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--avatar); flex-shrink: 0; }
+
+  .hero { text-align: center; padding: 40px 24px 32px; }
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 600; color: var(--purple);
+    background: var(--purple-tint); border: 1px solid var(--purple-tint-border);
+    border-radius: 20px; padding: 6px 14px; margin-bottom: 20px;
+  }
+  h1 { font-size: 34px; font-weight: 800; line-height: 1.25; margin: 0 0 14px; }
+  .subhead { max-width: 620px; margin: 0 auto; font-size: 15px; line-height: 1.6; color: var(--muted); }
+
+  .panels {
+    display: flex; gap: 24px; padding: 8px 32px 40px;
+    align-items: flex-start; flex-wrap: wrap;
+  }
+  .panel {
+    flex: 1 1 420px; border: 1px solid var(--border); border-radius: 16px; padding: 28px;
+  }
+  .panel-left { background: var(--card); }
+  .panel-right { background: var(--card-alt); }
+  .panel-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .panel-sub { font-size: 13px; color: var(--faint); margin-bottom: 26px; }
+
+  .field-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  [hidden] { display: none !important; }
+
+  .seg { display: flex; gap: 4px; background: var(--track); border-radius: 10px; padding: 4px; margin-bottom: 18px; }
+  .seg-btn {
+    flex: 1; border: none; background: transparent; color: var(--muted); font-family: inherit;
+    font-size: 13px; font-weight: 600; padding: 9px 10px; border-radius: 7px; cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  .seg-btn.active { background: var(--card); color: var(--purple); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+  .seg-btn:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+  select.route-select { margin-bottom: 16px; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 22px; cursor: pointer; }
+  .check input { accent-color: var(--purple); width: 16px; height: 16px; margin: 0; cursor: pointer; }
+  .route-summary {
+    background: var(--purple-tint); border: 1px solid var(--purple-tint-border); border-radius: 10px;
+    padding: 12px 14px; font-size: 13px; line-height: 1.6; margin-bottom: 24px;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+  .route-summary strong { color: var(--purple); font-weight: 700; }
+  .route-summary small { display: block; color: var(--faint); font-size: 11px; margin-top: 2px; }
+
+  select.dropdown {
+    width: 100%; appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    border: 1px solid var(--input-border); border-radius: 10px; padding: 12px 40px 12px 14px;
+    font-size: 14px; color: var(--ink); font-family: inherit;
+    background: #FFFFFF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%239A98AC' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center;
+    margin-bottom: 24px; cursor: pointer;
+  }
+  select.dropdown:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+
+  .slider-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .slider-name { font-size: 13px; font-weight: 600; }
+  .slider-unit { font-size: 11px; color: var(--faint); }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; border-radius: 3px;
+    background: linear-gradient(to right, var(--purple) 0%, var(--purple) var(--fill, 50%), var(--track) var(--fill, 50%), var(--track) 100%);
+    margin: 0; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--ink); border: 3px solid #FFFFFF;
+    box-shadow: 0 0 0 1px var(--ink);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--ink); border: 3px solid #FFFFFF;
+    box-shadow: 0 0 0 1px var(--ink);
+    cursor: pointer; border: none;
+  }
+  input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: transparent; }
+  input[type="range"]:focus-visible { outline: 2px solid var(--purple); outline-offset: 3px; }
+
+  .slider-value { text-align: right; font-size: 13px; font-weight: 700; margin: 4px 0 22px; }
+
+  button.cta {
+    width: 100%; background: var(--purple); color: #FFFFFF; border: none; border-radius: 10px;
+    padding: 15px; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  button.cta:hover { background: var(--purple-hover, #857909); }
+  button.cta:active { transform: scale(0.99); }
+  button.cta:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .disclaimer { text-align: center; font-size: 11px; color: var(--faintest); margin-top: 14px; line-height: 1.5; }
+
+  .result-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 12px; }
+  .badge {
+    font-size: 12px; font-weight: 600; border-radius: 12px; padding: 4px 12px; white-space: nowrap;
+    color: var(--purple); background: var(--purple-tint);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .eyebrow, .nav a.active, button.cta, .bd-fill, .bd-track, input[type="range"] {
+    transition-property: background-color, color, border-color, width, transform;
+    transition-duration: 0.3s;
+  }
+
+  .total-wrap { text-align: center; margin-bottom: 28px; }
+  .total-value { font-size: 56px; font-weight: 800; line-height: 1; color: var(--purple); transition: color 0.3s ease; }
+  .total-label { font-size: 13px; color: var(--faint); margin-top: 6px; }
+
+  .bd-row { display: flex; align-items: center; margin-bottom: 14px; }
+  .bd-label { width: 80px; font-size: 13px; color: var(--muted); flex-shrink: 0; }
+  .bd-track { flex: 1; height: 6px; background: var(--track); border-radius: 3px; margin: 0 12px; overflow: hidden; }
+  .bd-fill { height: 6px; background: var(--purple); border-radius: 3px; width: 0%; transition: width 0.35s ease; }
+  .bd-value { width: 44px; text-align: right; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+
+  .summary-box {
+    background: var(--summary-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    font-size: 13px; line-height: 1.6; margin: 22px 0 20px; min-height: 44px;
+  }
+  .summary-box strong { font-weight: 700; }
+  .summary-cluster { color: var(--purple); font-weight: 600; }
+
+  .meta-row { display: flex; justify-content: space-between; font-size: 13px; flex-wrap: wrap; gap: 8px; }
+  .meta-row span { color: var(--muted); }
+  .meta-row strong { color: var(--ink); }
+
+  .accum-box { margin-top: 22px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--summary-bg); }
+  .accum-title { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+  .accum-grid { display: flex; justify-content: space-between; gap: 12px; text-align: center; }
+  .accum-num { font-size: 20px; font-weight: 800; color: var(--purple); }
+  .accum-lbl { font-size: 11px; color: var(--faint); margin-top: 2px; }
+  .accum-note { font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.5; text-align: center; }
+
+  @media (max-width: 640px) {
+    h1 { font-size: 26px; }
+    .panel { padding: 22px; }
+    .header { padding: 16px 20px; }
+    .hero { padding: 32px 16px 24px; }
+    .panels { padding: 8px 16px 28px; }
+    .nav { gap: 18px; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16160F;
+      --card: #1E1E15;
+      --card-alt: #1A1A12;
+      --border: #36362A;
+      --border-strong: #D4C73A;
+      --purple: #D4C73A;
+      --purple-tint: #3A3614;
+      --purple-tint-border: #5A531C;
+      --track: #2E2E22;
+      --ink: #F5F4EA;
+      --muted: #B0AE9A;
+      --faint: #8C8A78;
+      --faintest: #6E6C5C;
+      --brand-accent: #D4C73A;
+      --input-border: #36362A;
+      --header-line: #36362A;
+      --avatar: #F5F4EA;
+      --summary-bg: #26261B;
+    }
+    :root:not([data-theme="light"]) select.dropdown { background-color: #26261B; color: var(--ink); }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16160F; --card: #1E1E15; --card-alt: #1A1A12; --border: #36362A;
+    --border-strong: #D4C73A; --purple: #D4C73A; --purple-tint: #3A3614;
+    --purple-tint-border: #5A531C; --track: #2E2E22; --ink: #F5F4EA;
+    --muted: #B0AE9A; --faint: #8C8A78; --faintest: #6E6C5C;
+    --brand-accent: #D4C73A; --input-border: #36362A; --header-line: #36362A;
+    --avatar: #F5F4EA; --summary-bg: #26261B;
+  }
+  :root[data-theme="dark"] select.dropdown { background-color: #26261B; color: var(--ink); }
+</style>
+</head>
+<body>
+
+  <div class="shell">
+
+    <div class="header">
+      <div class="brand">
+        <img src="carbonscope-icon.svg" alt="CarbonScope logo" class="logo-placeholder">
+        <span class="brand-name">Carbon<span class="accent">Scope</span></span>
+      </div>
+      <div class="nav">
+        <a href="#" class="active">Estimate</a>
+        <a href="anomalies.html">Anomalies</a>
+        <a href="reports.html">Reports</a>
+      </div>
+      <div class="avatar"></div>
+    </div>
+
+    <div class="hero">
+      <span class="eyebrow">✦ CO2e Estimation · K-Means · Isolation Forest</span>
+      <h1>Enter your weekly activity, get an instant<br>carbon reading</h1>
+      <p class="subhead">Fill in the fields below. CarbonScope converts each activity into CO2e using documented emission factors, then places the result against the clustered dataset to interpret what it means.</p>
+    </div>
+
+    <div class="panels panels-outer">
+
+      <div class="panel panel-left">
+        <div class="panel-title">Weekly activity input</div>
+        <div class="panel-sub">Estimates update as you adjust the fields.</div>
+
+        <div class="field-label">Mode of transportation</div>
+        <select class="dropdown" id="transportMode">
+          <option value="car_gasoline" selected>Car — gasoline (0.12 kg CO2e per km)</option>
+          <option value="motorcycle">Motorcycle (0.09 kg CO2e per km)</option>
+          <option value="traditional_jeep">Traditional jeep (0.15 kg CO2e per km)</option>
+          <option value="bicycle_walking">Bicycle / walking (0 kg CO2e per km)</option>
+        </select>
+
+        <div class="field-label">Distance travelled</div>
+        <div class="seg" role="group" aria-label="How to set distance">
+          <button type="button" class="seg-btn active" id="modeRoute">Pick route</button>
+          <button type="button" class="seg-btn" id="modeManual">Enter km</button>
+        </div>
+
+        <div id="routeGroup">
+          <div class="field-label">From</div>
+          <select class="dropdown route-select" id="routeFrom"></select>
+          <div class="field-label">To (CvSU campus)</div>
+          <select class="dropdown route-select" id="routeTo"></select>
+
+          <label class="check"><input type="checkbox" id="roundTrip" checked> Round trip (pa-uwi rin)</label>
+
+          <div class="slider-row">
+            <span class="slider-name">Days travelled</span>
+            <span class="slider-unit">days / week</span>
+          </div>
+          <input type="range" id="tripDays" min="1" max="7" step="1" value="5">
+          <div class="slider-value" id="tripDaysVal">5</div>
+
+          <div class="route-summary" id="routeSummary"></div>
+        </div>
+
+        <div id="manualGroup" hidden>
+          <div class="slider-row">
+            <span class="slider-name">Distance travelled</span>
+            <span class="slider-unit">km / week</span>
+          </div>
+          <input type="range" id="distance" min="0" max="300" step="1" value="85">
+          <div class="slider-value" id="distanceVal">85</div>
+        </div>
+
+        <div class="slider-row">
+          <span class="slider-name">Electricity use</span>
+          <span class="slider-unit">kWh / week</span>
+        </div>
+        <input type="range" id="electricity" min="0" max="150" step="1" value="35">
+        <div class="slider-value" id="electricityVal">35</div>
+
+        <div class="slider-row">
+          <span class="slider-name">Digital device use</span>
+          <span class="slider-unit">hrs / day</span>
+        </div>
+        <input type="range" id="devices" min="0" max="24" step="0.5" value="8">
+        <div class="slider-value" id="devicesVal">8</div>
+
+        <div class="slider-row">
+          <span class="slider-name">Paper / material use</span>
+          <span class="slider-unit">sheets / week</span>
+        </div>
+        <input type="range" id="paper" min="0" max="100" step="1" value="10">
+        <div class="slider-value" id="paperVal">10</div>
+
+        <div class="field-label">Food consumption pattern</div>
+        <select class="dropdown" id="foodPattern">
+          <option value="vegan">Vegan (10.0 kg CO2e/week)</option>
+          <option value="vegetarian">Vegetarian (15.0 kg CO2e/week)</option>
+          <option value="mixed_diet" selected>Mixed diet (22.0 kg CO2e/week)</option>
+          <option value="meat_heavy">Meat-heavy (35.0 kg CO2e/week)</option>
+        </select>
+
+        <button class="cta" id="estimateBtn">Scope!</button>
+        <div id="apiStatus" style="text-align:center; font-size:12px; margin-top:10px; min-height:16px;"></div>
+
+        <div class="disclaimer">Emission factors are illustrative placeholders for this prototype — the deployed system uses factors documented from the validation source datasets.</div>
+      </div>
+
+      <div class="panel panel-right">
+        <div class="result-header">
+          <div class="panel-title" style="margin-bottom:0;">Estimation result</div>
+          <span class="badge" id="badge">Moderate</span>
+        </div>
+
+        <div class="total-wrap">
+          <div class="total-value" id="totalValue">49.0</div>
+          <div class="total-label">kg CO2e estimated this week</div>
+        </div>
+
+        <div class="bd-row">
+          <div class="bd-label">Transport</div>
+          <div class="bd-track"><div class="bd-fill" id="fillTransport"></div></div>
+          <div class="bd-value" id="valTransport">10.2</div>
+        </div>
+        <div class="bd-row">
+          <div class="bd-label">Electricity</div>
+          <div class="bd-track"><div class="bd-fill" id="fillElectricity"></div></div>
+          <div class="bd-value" id="valElectricity">15.8</div>
+        </div>
+        <div class="bd-row">
+          <div class="bd-label">Devices</div>
+          <div class="bd-track"><div class="bd-fill" id="fillDevices"></div></div>
+          <div class="bd-value" id="valDevices">0.8</div>
+        </div>
+        <div class="bd-row">
+          <div class="bd-label">Paper</div>
+          <div class="bd-track"><div class="bd-fill" id="fillPaper"></div></div>
+          <div class="bd-value" id="valPaper">0.2</div>
+        </div>
+        <div class="bd-row">
+          <div class="bd-label">Food</div>
+          <div class="bd-track"><div class="bd-fill" id="fillFood"></div></div>
+          <div class="bd-value" id="valFood">22.0</div>
+        </div>
+
+        <div class="summary-box" id="summaryBox">
+          <strong>49.0 kg CO2e</strong> falls within the <span class="summary-cluster">Moderate emission</span> cluster, consistent with most records in the dataset. No anomaly flags raised.
+        </div>
+
+        <div class="meta-row">
+          <span>Nearest cluster: <strong id="clusterLabel">Moderate emission</strong></span>
+          <span>Percentile: <strong id="percentileLabel">Top 42%</strong></span>
+        </div>
+
+        <div class="accum-box" id="accumBox">
+          <div class="accum-title">Accumulated records</div>
+          <div class="accum-grid">
+            <div><div class="accum-num" id="accumRecords">&mdash;</div><div class="accum-lbl">records</div></div>
+            <div><div class="accum-num" id="accumTotal">&mdash;</div><div class="accum-lbl">kg CO2e total</div></div>
+            <div><div class="accum-num" id="accumWeek">&mdash;</div><div class="accum-lbl">kg CO2e, last 7 days</div></div>
+          </div>
+          <div class="accum-note" id="accumNote"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+(function () {
+  var API_BASE_URL = (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://127.0.0.1:8000' : 'https://PALITAN-MO-ITO.onrender.com';
+
+  var TRANSPORT_FACTORS = {
+    car_gasoline: 0.12,
+    motorcycle: 0.09,
+    traditional_jeep: 0.15,
+    bicycle_walking: 0
+  };
+  var FOOD_VALUES = { vegan: 10, vegetarian: 15, mixed_diet: 22, meat_heavy: 35 };
+  var DEVICE_FACTOR = 0.1;
+  var PAPER_FACTOR = 0.02;
+  var ELECTRICITY_FACTOR = 0.45;
+
+  var distanceEl = document.getElementById('distance');
+  var electricityEl = document.getElementById('electricity');
+  var devicesEl = document.getElementById('devices');
+  var paperEl = document.getElementById('paper');
+  var transportModeEl = document.getElementById('transportMode');
+  var foodPatternEl = document.getElementById('foodPattern');
+
+  var distanceValEl = document.getElementById('distanceVal');
+  var electricityValEl = document.getElementById('electricityVal');
+  var devicesValEl = document.getElementById('devicesVal');
+  var paperValEl = document.getElementById('paperVal');
+
+  var totalValueEl = document.getElementById('totalValue');
+  var badgeEl = document.getElementById('badge');
+  var summaryBoxEl = document.getElementById('summaryBox');
+  var clusterLabelEl = document.getElementById('clusterLabel');
+  var percentileLabelEl = document.getElementById('percentileLabel');
+  var apiStatusEl = document.getElementById('apiStatus');
+  var estimateBtn = document.getElementById('estimateBtn');
+  var accumRecordsEl = document.getElementById('accumRecords');
+  var accumTotalEl = document.getElementById('accumTotal');
+  var accumWeekEl = document.getElementById('accumWeek');
+  var accumNoteEl = document.getElementById('accumNote');
+
+  var fills = {
+    Transport: document.getElementById('fillTransport'),
+    Electricity: document.getElementById('fillElectricity'),
+    Devices: document.getElementById('fillDevices'),
+    Paper: document.getElementById('fillPaper'),
+    Food: document.getElementById('fillFood')
+  };
+  var vals = {
+    Transport: document.getElementById('valTransport'),
+    Electricity: document.getElementById('valElectricity'),
+    Devices: document.getElementById('valDevices'),
+    Paper: document.getElementById('valPaper'),
+    Food: document.getElementById('valFood')
+  };
+
+  var BAR_MAX = { Transport: 36, Electricity: 68, Devices: 2.4, Paper: 2, Food: 35 };
+
+  function fmt(n) { return n.toFixed(1); }
+
+  // ---- Accumulated records (SRS Features 3 and 4) ----
+  function loadAccumulated() {
+    fetch(API_BASE_URL + '/api/accumulated')
+      .then(function (res) {
+        if (!res.ok) throw new Error('status ' + res.status);
+        return res.json();
+      })
+      .then(function (d) {
+        accumRecordsEl.textContent = d.records_count;
+        accumTotalEl.textContent = fmt(d.total_co2e);
+        accumWeekEl.textContent = fmt(d.last_7_days_co2e);
+        accumNoteEl.textContent = d.meets_minimum
+          ? 'Minimum of ' + d.minimum_required + ' records reached. Your data is ready for analysis on the Reports page.'
+          : d.records_count + ' of ' + d.minimum_required + ' records collected. ' + d.records_remaining +
+            ' more needed before analysis.';
+      })
+      .catch(function () {
+        accumNoteEl.textContent = 'Accumulated totals are not available right now.';
+      });
+  }
+
+  // ---- Readable error messages from the API ----
+  var FIELD_NAMES = {
+    transport_subtype: 'Transport mode', distance_km: 'Distance', electricity_kwh: 'Electricity use',
+    device_hours_per_day: 'Device use', paper_sheets: 'Paper use', food_subtype: 'Food pattern'
+  };
+  function errorText(detail, status) {
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail) && detail.length) {
+      return detail.map(function (d) {
+        var field = d.loc && d.loc.length ? d.loc[d.loc.length - 1] : '';
+        var name = FIELD_NAMES[field] || field;
+        return (name ? name + ': ' : '') + (d.msg || 'invalid value');
+      }).join('; ');
+    }
+    return 'Request failed with status ' + status;
+  }
+
+  // ---- Route picker ----
+  // Coordinates are approximate. Edit lat/lng here to fine-tune any point.
+  var ROAD_FACTOR = 1.35; // straight-line distance -> estimated road distance
+  var ORIGINS = [
+    { id: 'pala_pala',    name: 'Pala-pala',        lat: 14.3420, lng: 120.9450 },
+    { id: 'sm_trece',     name: 'SM Trece',         lat: 14.2830, lng: 120.8640 },
+    { id: 'manggahan',    name: 'Manggahan Gentri', lat: 14.3600, lng: 120.9040 },
+    { id: 'dasma_bayan',  name: 'Dasma Bayan',      lat: 14.3294, lng: 120.9367 },
+    { id: 'lumina_imus',  name: 'Lumina Imus',      lat: 14.4010, lng: 120.9300 },
+    { id: 'alulod',       name: 'Alulod',           lat: 14.2020, lng: 120.8890 },
+    { id: 'amadeo',       name: 'Amadeo Savemore',  lat: 14.1700, lng: 120.9230 },
+    { id: 'tagaytay',     name: 'Tagaytay',         lat: 14.1153, lng: 120.9621 },
+    { id: 'mendez',       name: 'Mendez',           lat: 14.1286, lng: 120.9050 },
+    { id: 'alfonso',      name: 'Alfonso',          lat: 14.1393, lng: 120.8569 },
+    { id: 'bailen',       name: 'Bailen',           lat: 14.1850, lng: 120.7870 }
+  ];
+  var CAMPUSES = [
+    { id: 'main',       name: 'CvSU Main (Indang)',            lat: 14.1988, lng: 120.8815 },
+    { id: 'rosario',    name: 'CvSU Rosario (CCAT)',           lat: 14.4130, lng: 120.8560 },
+    { id: 'naic',       name: 'CvSU Naic',                     lat: 14.3180, lng: 120.7650 },
+    { id: 'cavite',     name: 'CvSU Cavite City',              lat: 14.4640, lng: 120.8870 },
+    { id: 'carmona',    name: 'CvSU Carmona',                  lat: 14.3125, lng: 121.0570 },
+    { id: 'imus',       name: 'CvSU Imus',                     lat: 14.4010, lng: 120.9380 },
+    { id: 'trece',      name: 'CvSU Trece Martires',           lat: 14.2860, lng: 120.8660 },
+    { id: 'silang',     name: 'CvSU Silang',                   lat: 14.2270, lng: 120.9760 },
+    { id: 'tanza',      name: 'CvSU Tanza',                    lat: 14.3380, lng: 120.8530 },
+    { id: 'bacoor',     name: 'CvSU Bacoor',                   lat: 14.4180, lng: 120.9770 },
+    { id: 'gentri',     name: 'CvSU General Trias',            lat: 14.3800, lng: 120.8800 },
+    { id: 'maragondon', name: 'CvSU Maragondon',               lat: 14.2740, lng: 120.7360 },
+    { id: 'dasma_lc',   name: 'CvSU Dasmariñas Learning Center', lat: 14.3300, lng: 120.9380 }
+  ];
+
+  var routeFromEl = document.getElementById('routeFrom');
+  var routeToEl = document.getElementById('routeTo');
+  var roundTripEl = document.getElementById('roundTrip');
+  var tripDaysEl = document.getElementById('tripDays');
+  var tripDaysValEl = document.getElementById('tripDaysVal');
+  var routeSummaryEl = document.getElementById('routeSummary');
+  var routeGroupEl = document.getElementById('routeGroup');
+  var manualGroupEl = document.getElementById('manualGroup');
+  var modeRouteBtn = document.getElementById('modeRoute');
+  var modeManualBtn = document.getElementById('modeManual');
+  var distanceMode = 'route';
+
+  function fillSelect(el, items, selectedId) {
+    items.forEach(function (item) {
+      var opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.name;
+      if (item.id === selectedId) opt.selected = true;
+      el.appendChild(opt);
+    });
+  }
+  function byName(a, b) { return a.name.localeCompare(b.name); }
+  ORIGINS.sort(byName);
+  CAMPUSES.sort(byName);
+  fillSelect(routeFromEl, ORIGINS, 'dasma_bayan');
+  fillSelect(routeToEl, CAMPUSES, 'imus');
+
+  function findById(list, id) {
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return list[0];
+  }
+
+  function haversineKm(a, b) {
+    var R = 6371, rad = Math.PI / 180;
+    var dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  function routeOneWayKm() {
+    var from = findById(ORIGINS, routeFromEl.value);
+    var to = findById(CAMPUSES, routeToEl.value);
+    return Math.round(haversineKm(from, to) * ROAD_FACTOR * 10) / 10;
+  }
+
+  function routeWeeklyKm() {
+    var legs = roundTripEl.checked ? 2 : 1;
+    return Math.round(routeOneWayKm() * legs * parseFloat(tripDaysEl.value) * 10) / 10;
+  }
+
+  function getDistance() {
+    return distanceMode === 'route' ? routeWeeklyKm() : parseFloat(distanceEl.value);
+  }
+
+  function updateRouteSummary() {
+    var oneWay = routeOneWayKm();
+    var legs = roundTripEl.checked ? 2 : 1;
+    var days = parseFloat(tripDaysEl.value);
+    var weekly = routeWeeklyKm();
+    routeSummaryEl.innerHTML =
+      '<strong>' + oneWay.toFixed(1) + ' km</strong> one-way × ' + legs + (legs === 2 ? ' (round trip)' : ' (one-way only)') +
+      ' × ' + days + ' day' + (days === 1 ? '' : 's') + ' = <strong>' + weekly.toFixed(1) + ' km / week</strong>' +
+      '<small>Estimated road distance — actual may vary with the route taken.</small>';
+  }
+
+  function setDistanceMode(mode) {
+    distanceMode = mode;
+    var isRoute = mode === 'route';
+    routeGroupEl.hidden = !isRoute;
+    manualGroupEl.hidden = isRoute;
+    modeRouteBtn.classList.toggle('active', isRoute);
+    modeManualBtn.classList.toggle('active', !isRoute);
+    preview();
+  }
+  modeRouteBtn.addEventListener('click', function () { setDistanceMode('route'); });
+  modeManualBtn.addEventListener('click', function () { setDistanceMode('manual'); });
+
+  function updateSliderFill(el) {
+    var min = parseFloat(el.min), max = parseFloat(el.max), val = parseFloat(el.value);
+    var pct = ((val - min) / (max - min)) * 100;
+    el.style.setProperty('--fill', pct + '%');
+  }
+
+
+  function previewClassify(total) {
+    if (total < 20) return { label: 'Low', cluster: 'Low emission' };
+    if (total < 45) return { label: 'Moderate', cluster: 'Moderate emission' };
+    return { label: 'High', cluster: 'High emission' };
+  }
+
+  var CLUSTER_DISPLAY = {
+    low_emission: { label: 'Low', cluster: 'Low emission' },
+    moderate: { label: 'Moderate', cluster: 'Moderate emission' },
+    high_emission: { label: 'High', cluster: 'High emission' }
+  };
+
+  // Live theme: green (low) -> amber (mid) -> red (high), based on total kg CO2e
+  var THEME_LOW = 15;   // at or below this = full green
+  var THEME_HIGH = 75;  // at or above this = full red
+  var darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function isDark() {
+    var forced = document.documentElement.getAttribute('data-theme');
+    if (forced === 'dark') return true;
+    if (forced === 'light') return false;
+    return !!(darkQuery && darkQuery.matches);
+  }
+
+  function applyTheme(total) {
+    var t = Math.max(0, Math.min(1, (total - THEME_LOW) / (THEME_HIGH - THEME_LOW)));
+    var h = Math.round(145 * (1 - t)); // 145 = green, 0 = red
+    var dark = isDark();
+    var s = document.documentElement.style;
+    if (dark) {
+      s.setProperty('--purple', 'hsl(' + h + ', 75%, 60%)');
+      s.setProperty('--purple-hover', 'hsl(' + h + ', 75%, 54%)');
+      s.setProperty('--purple-tint', 'hsl(' + h + ', 35%, 17%)');
+      s.setProperty('--purple-tint-border', 'hsl(' + h + ', 30%, 27%)');
+      s.setProperty('--border-strong', 'hsl(' + h + ', 70%, 60%)');
+      s.setProperty('--track', 'hsl(' + h + ', 18%, 22%)');
+    } else {
+      s.setProperty('--purple', 'hsl(' + h + ', 72%, 36%)');
+      s.setProperty('--purple-hover', 'hsl(' + h + ', 72%, 30%)');
+      s.setProperty('--purple-tint', 'hsl(' + h + ', 80%, 94%)');
+      s.setProperty('--purple-tint-border', 'hsl(' + h + ', 65%, 84%)');
+      s.setProperty('--border-strong', 'hsl(' + h + ', 72%, 36%)');
+      s.setProperty('--track', 'hsl(' + h + ', 25%, 92%)');
+    }
+  }
+
+  function estimatePercentile(total) {
+    var pct = Math.max(1, Math.min(99, Math.round(100 - (total / 120) * 100)));
+    return pct;
+  }
+
+  function currentBreakdown() {
+    var distance = getDistance();
+    var electricity = parseFloat(electricityEl.value);
+    var devices = parseFloat(devicesEl.value);
+    var paper = parseFloat(paperEl.value);
+    var transportFactor = TRANSPORT_FACTORS[transportModeEl.value];
+    var food = FOOD_VALUES[foodPatternEl.value];
+
+    return {
+      distance: distance, electricity: electricity, devices: devices, paper: paper,
+      Transport: distance * transportFactor,
+      Electricity: electricity * ELECTRICITY_FACTOR,
+      Devices: devices * DEVICE_FACTOR,
+      Paper: paper * PAPER_FACTOR,
+      Food: food
+    };
+  }
+
+  function renderBreakdown(b, total) {
+    ['Transport', 'Electricity', 'Devices', 'Paper', 'Food'].forEach(function (key) {
+      var v = b[key];
+      vals[key].textContent = fmt(v);
+      var pct = Math.min(100, (v / BAR_MAX[key]) * 100);
+      fills[key].style.width = pct + '%';
+    });
+    totalValueEl.textContent = fmt(total);
+  }
+
+  function preview() {
+    distanceValEl.textContent = distanceEl.value;
+    tripDaysValEl.textContent = tripDaysEl.value;
+    updateRouteSummary();
+    electricityValEl.textContent = electricityEl.value;
+    devicesValEl.textContent = devicesEl.value;
+    paperValEl.textContent = paperEl.value;
+
+    var b = currentBreakdown();
+    var total = b.Transport + b.Electricity + b.Devices + b.Paper + b.Food;
+    renderBreakdown(b, total);
+
+    var cls = previewClassify(total);
+    badgeEl.textContent = cls.label;
+    applyTheme(total);
+    percentileLabelEl.textContent = 'Top ' + estimatePercentile(total) + '%';
+
+    [distanceEl, electricityEl, devicesEl, paperEl, tripDaysEl].forEach(updateSliderFill);
+  }
+
+  function submitEstimate() {
+    var payload = {
+      transport_subtype: transportModeEl.value,
+      distance_km: getDistance(),
+      electricity_kwh: parseFloat(electricityEl.value),
+      device_hours_per_day: parseFloat(devicesEl.value),
+      paper_sheets: parseFloat(paperEl.value),
+      food_subtype: foodPatternEl.value
+    };
+
+    estimateBtn.disabled = true;
+    estimateBtn.textContent = 'Adding your scope...';
+    apiStatusEl.textContent = '';
+    apiStatusEl.style.color = '';
+
+    fetch(API_BASE_URL + '/api/estimate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().catch(function () { return {}; }).then(function (err) {
+            var e = new Error(errorText(err.detail, res.status));
+            e.fromServer = true;
+            e.status = res.status;
+            throw e;
+          });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        var b = data.breakdown;
+        renderBreakdown(
+          {
+            Transport: b.transport_co2e,
+            Electricity: b.electricity_co2e,
+            Devices: b.devices_co2e,
+            Paper: b.paper_co2e,
+            Food: b.food_co2e
+          },
+          b.total_co2e
+        );
+
+        var cls = CLUSTER_DISPLAY[data.nearest_cluster] || previewClassify(b.total_co2e);
+        badgeEl.textContent = cls.label;
+        applyTheme(b.total_co2e);
+        summaryBoxEl.innerHTML = '<strong>' + fmt(b.total_co2e) + ' kg CO2e</strong> falls within the ' +
+          '<span class="summary-cluster">' + cls.cluster + '</span> cluster.';
+        clusterLabelEl.textContent = cls.cluster;
+        percentileLabelEl.textContent = 'Top ' + estimatePercentile(b.total_co2e) + '%';
+
+        apiStatusEl.style.color = '#1F9D55';
+        apiStatusEl.textContent = 'Saved — record ' + data.record_id.slice(0, 8) + '…';
+        loadAccumulated();
+      })
+      .catch(function (err) {
+        apiStatusEl.style.color = '#C23B3B';
+        if (err.fromServer) {
+          apiStatusEl.textContent = err.status === 422
+            ? 'Please correct your input and try again. ' + err.message
+            : 'Could not save your estimate. ' + err.message;
+        } else {
+          apiStatusEl.textContent = 'Could not reach the server: ' + err.message;
+        }
+      })
+      .finally(function () {
+        estimateBtn.disabled = false;
+        estimateBtn.textContent = 'Scope!';
+      });
+  }
+
+  [distanceEl, electricityEl, devicesEl, paperEl, transportModeEl, foodPatternEl,
+   routeFromEl, routeToEl, roundTripEl, tripDaysEl].forEach(function (el) {
+    el.addEventListener('input', preview);
+    el.addEventListener('change', preview);
+  });
+
+  if (darkQuery && darkQuery.addEventListener) {
+    darkQuery.addEventListener('change', preview);
+  }
+
+  estimateBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    submitEstimate();
+  });
+
+  preview();
+  loadAccumulated();
+})();
+</script>
+
+</body>
+</html>

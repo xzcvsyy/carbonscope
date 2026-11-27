@@ -4,6 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter
 
 from app.database import supabase
+from app.settings import MIN_RECORDS_REQUIRED
 
 router = APIRouter()
 
@@ -92,6 +93,9 @@ def get_report():
         "has_mining_run": latest_run is not None,
         "total_co2e_tonnes": total_co2e_tonnes,
         "records_processed": records_processed,
+        "records_collected": len(records),
+        "records_required": MIN_RECORDS_REQUIRED,
+        "meets_minimum": len(records) >= MIN_RECORDS_REQUIRED,
         "anomalies_flagged": anomalies_flagged,
         "cluster_distribution": cluster_distribution,
         "silhouette_score": silhouette_score,

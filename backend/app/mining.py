@@ -26,6 +26,7 @@ from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 
 from app.database import supabase
+from app.settings import MIN_RECORDS_REQUIRED
 
 FEATURE_COLUMNS = [
     "transport_co2e",
@@ -38,7 +39,6 @@ FEATURE_COLUMNS = [
 K_CLUSTERS = 3
 CLUSTER_LABEL_ORDER = ["low_emission", "moderate", "high_emission"]
 ISOLATION_CONTAMINATION = 0.02
-MIN_RECORDS_REQUIRED = 5
 
 
 def select_data() -> pd.DataFrame:

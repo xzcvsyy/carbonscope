@@ -208,6 +208,13 @@
   .meta-row span { color: var(--muted); }
   .meta-row strong { color: var(--ink); }
 
+  .accum-box { margin-top: 22px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--summary-bg); }
+  .accum-title { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+  .accum-grid { display: flex; justify-content: space-between; gap: 12px; text-align: center; }
+  .accum-num { font-size: 20px; font-weight: 800; color: var(--purple); }
+  .accum-lbl { font-size: 11px; color: var(--faint); margin-top: 2px; }
+  .accum-note { font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.5; text-align: center; }
+
   @media (max-width: 640px) {
     h1 { font-size: 26px; }
     .panel { padding: 22px; }
@@ -401,6 +408,16 @@
           <span>Nearest cluster: <strong id="clusterLabel">Moderate emission</strong></span>
           <span>Percentile: <strong id="percentileLabel">Top 42%</strong></span>
         </div>
+
+        <div class="accum-box" id="accumBox">
+          <div class="accum-title">Accumulated records</div>
+          <div class="accum-grid">
+            <div><div class="accum-num" id="accumRecords">&mdash;</div><div class="accum-lbl">records</div></div>
+            <div><div class="accum-num" id="accumTotal">&mdash;</div><div class="accum-lbl">kg CO2e total</div></div>
+            <div><div class="accum-num" id="accumWeek">&mdash;</div><div class="accum-lbl">kg CO2e, last 7 days</div></div>
+          </div>
+          <div class="accum-note" id="accumNote"></div>
+        </div>
       </div>
 
     </div>
@@ -440,6 +457,10 @@
   var percentileLabelEl = document.getElementById('percentileLabel');
   var apiStatusEl = document.getElementById('apiStatus');
   var estimateBtn = document.getElementById('estimateBtn');
+  var accumRecordsEl = document.getElementById('accumRecords');
+  var accumTotalEl = document.getElementById('accumTotal');
+  var accumWeekEl = document.getElementById('accumWeek');
+  var accumNoteEl = document.getElementById('accumNote');
 
   var fills = {
     Transport: document.getElementById('fillTransport'),
@@ -459,6 +480,44 @@
   var BAR_MAX = { Transport: 36, Electricity: 68, Devices: 2.4, Paper: 2, Food: 35 };
 
   function fmt(n) { return n.toFixed(1); }
+
+  // ---- Accumulated records (SRS Features 3 and 4) ----
+  function loadAccumulated() {
+    fetch(API_BASE_URL + '/api/accumulated')
+      .then(function (res) {
+        if (!res.ok) throw new Error('status ' + res.status);
+        return res.json();
+      })
+      .then(function (d) {
+        accumRecordsEl.textContent = d.records_count;
+        accumTotalEl.textContent = fmt(d.total_co2e);
+        accumWeekEl.textContent = fmt(d.last_7_days_co2e);
+        accumNoteEl.textContent = d.meets_minimum
+          ? 'Minimum of ' + d.minimum_required + ' records reached. Your data is ready for analysis on the Reports page.'
+          : d.records_count + ' of ' + d.minimum_required + ' records collected. ' + d.records_remaining +
+            ' more needed before analysis.';
+      })
+      .catch(function () {
+        accumNoteEl.textContent = 'Accumulated totals are not available right now.';
+      });
+  }
+
+  // ---- Readable error messages from the API ----
+  var FIELD_NAMES = {
+    transport_subtype: 'Transport mode', distance_km: 'Distance', electricity_kwh: 'Electricity use',
+    device_hours_per_day: 'Device use', paper_sheets: 'Paper use', food_subtype: 'Food pattern'
+  };
+  function errorText(detail, status) {
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail) && detail.length) {
+      return detail.map(function (d) {
+        var field = d.loc && d.loc.length ? d.loc[d.loc.length - 1] : '';
+        var name = FIELD_NAMES[field] || field;
+        return (name ? name + ': ' : '') + (d.msg || 'invalid value');
+      }).join('; ');
+    }
+    return 'Request failed with status ' + status;
+  }
 
   // ---- Route picker ----
   // Coordinates are approximate. Edit lat/lng here to fine-tune any point.
@@ -698,8 +757,11 @@
     })
       .then(function (res) {
         if (!res.ok) {
-          return res.json().then(function (err) {
-            throw new Error(err.detail || ('Request failed with status ' + res.status));
+          return res.json().catch(function () { return {}; }).then(function (err) {
+            var e = new Error(errorText(err.detail, res.status));
+            e.fromServer = true;
+            e.status = res.status;
+            throw e;
           });
         }
         return res.json();
@@ -727,10 +789,17 @@
 
         apiStatusEl.style.color = '#1F9D55';
         apiStatusEl.textContent = 'Saved — record ' + data.record_id.slice(0, 8) + '…';
+        loadAccumulated();
       })
       .catch(function (err) {
         apiStatusEl.style.color = '#C23B3B';
-        apiStatusEl.textContent = 'Could not reach the server: ' + err.message;
+        if (err.fromServer) {
+          apiStatusEl.textContent = err.status === 422
+            ? 'Please correct your input and try again. ' + err.message
+            : 'Could not save your estimate. ' + err.message;
+        } else {
+          apiStatusEl.textContent = 'Could not reach the server: ' + err.message;
+        }
       })
       .finally(function () {
         estimateBtn.disabled = false;
@@ -754,6 +823,7 @@
   });
 
   preview();
+  loadAccumulated();
 })();
 </script>
 
